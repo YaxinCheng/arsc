@@ -113,9 +113,8 @@ pub struct Value {
     pub zero: u8,
     pub r#type: u8,
     pub data_index: usize,
-    pub string_data: Option<String>,
 }
 
 impl Value {
-    pub const TYPE_STRING: u8 = 0x03;
+    pub(crate) const TYPE_STRING: u8 = 0x03;
 }

@@ -99,23 +99,12 @@ impl<R: Read + Seek> TryFrom<&mut BufReader<R>> for Value {
         let size = read_util::read_u16(reader)?;
         let zero = read_util::read_u8(reader)?;
         let r#type = read_util::read_u8(reader)?;
-        let data = read_util::read_u32(reader)? as usize;
+        let data_index = read_util::read_u32(reader)? as usize;
         Ok(Value {
             size,
             zero,
             r#type,
-            data_index: data,
-            string_data: None,
+            data_index,
         })
-    }
-}
-
-impl Value {
-    pub(in crate::parser) fn update_string_data(&mut self, string_pool: &mut Vec<String>) {
-        if self.r#type == Self::TYPE_STRING && self.string_data.is_none() {
-            string_pool.push(String::new());
-            let string = string_pool.swap_remove(self.data_index);
-            self.string_data.replace(string);
-        }
     }
 }

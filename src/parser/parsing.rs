@@ -135,10 +135,9 @@ impl<R: Read + Seek> Parser<R> {
         entry_count: usize,
         res_type: &mut Type,
     ) -> Result<BTreeMap<usize, ResourceEntry>> {
-        let mut entries = vec![-1; entry_count];
-        for index in 0..entry_count {
-            entries[index] = read_util::read_i32(&mut self.0)?;
-        }
+        let entries = std::iter::repeat_with(|| read_util::read_i32(&mut self.0))
+            .take(entry_count)
+            .collect::<Result<Vec<_>>>()?;
         let mut resources = BTreeMap::new();
         for (spec_index, entry) in entries.into_iter().enumerate() {
             if entry <= -1 {

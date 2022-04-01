@@ -1,6 +1,5 @@
 use paste::paste;
-use std::io::{Read, Result};
-use std::ops::Index;
+use std::io::{Read, Result, Seek, SeekFrom};
 
 macro_rules! read_num {
     ($num_type: ty) => {
@@ -19,11 +18,16 @@ read_num!(u16);
 read_num!(u32);
 read_num!(i32);
 
-pub fn read_string_utf16<const SIZE: usize, R: Read>(reader: &mut R) -> Result<String> {
-    let mut bytes = [0_u16; SIZE];
-    for offset in 0..SIZE {
-        bytes[offset] = read_u16(reader)?;
-    }
-    let index_of_zero = bytes.iter().position(|byte| byte == &0).unwrap_or(SIZE);
-    Ok(String::from_utf16(&bytes[..index_of_zero]).expect("Not Uft-16"))
+/// read 0-terminated string as utf16 encoding
+/// ## Warning:
+/// This function always reads `SIZE * 2` bytes
+pub fn read_string_utf16<const SIZE: usize, R: Read + Seek>(reader: &mut R) -> Result<String> {
+    let end = reader.stream_position()? + SIZE as u64 * 2;
+    let bytes = std::iter::repeat_with(|| read_u16(reader))
+        .take(SIZE)
+        .take_while(|byte| byte.as_ref().ok() != Some(&0))
+        .collect::<Result<Vec<_>>>()?;
+    let string = String::from_utf16(&bytes).expect("Not Uft-16");
+    reader.seek(SeekFrom::Start(end))?;
+    Ok(string)
 }
