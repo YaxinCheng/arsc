@@ -18,8 +18,6 @@ impl<R: Read> TryFrom<&mut BufReader<R>> for Header {
     }
 }
 
-const UTF8_FLAG: u32 = 0x00000100;
-
 impl<R: Read + Seek> TryFrom<&mut BufReader<R>> for StringPool {
     type Error = std::io::Error;
 
@@ -38,11 +36,12 @@ impl<R: Read + Seek> TryFrom<&mut BufReader<R>> for StringPool {
         let mut strings = Vec::with_capacity(string_count);
         for offset in offsets {
             reader.seek(SeekFrom::Start(base + offset))?;
-            let string = if flags & UTF8_FLAG != 0 {
+            let string = if flags & StringPool::UTF8_FLAG != 0 {
                 StringPool::read_utf8_string_item(reader)?
             } else {
                 StringPool::read_utf16_string_item(reader)?
             };
+            println!("{}, with size: {}", string, string.chars().count());
             strings.push(string);
         }
         Ok(StringPool { strings, flags })
@@ -51,7 +50,7 @@ impl<R: Read + Seek> TryFrom<&mut BufReader<R>> for StringPool {
 
 impl StringPool {
     fn read_utf8_string_item<R: Read + Seek>(reader: &mut BufReader<R>) -> Result<String, Error> {
-        Self::utf8_length(reader)?; // string length
+        let _char_count = Self::utf8_length(reader)?; // string length
         let byte_count = Self::utf8_length(reader)?;
         let start = reader.stream_position()?;
         let mut string_bytes = Vec::with_capacity(byte_count);
@@ -75,9 +74,9 @@ impl StringPool {
     }
 
     fn read_utf16_string_item<R: Read + Seek>(reader: &mut BufReader<R>) -> Result<String, Error> {
-        let word_count = Self::utf16_length(reader)?;
-        let mut string_bytes = Vec::with_capacity(word_count);
-        for _ in 0..word_count {
+        let char_count = Self::utf16_length(reader)?;
+        let mut string_bytes = Vec::with_capacity(char_count);
+        for _ in 0..char_count {
             string_bytes.push(read_util::read_u16(reader)?);
         }
         Ok(String::from_utf16(&string_bytes).expect("Not utf-16"))

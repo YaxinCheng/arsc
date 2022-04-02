@@ -1,9 +1,10 @@
-mod read_util;
 mod components_read;
 mod parsing;
+mod read_util;
 
-use std::io::{Read, Seek};
+use crate::components::Arsc;
+use std::io::{Read, Result, Seek};
 
-pub fn parse<R: Read + Seek>(reader: R) {
-    parsing::Parser::new(reader).parse().expect("");
+pub fn parse<R: Read + Seek>(reader: R) -> Result<Arsc> {
+    parsing::Parser::new(reader).parse()
 }

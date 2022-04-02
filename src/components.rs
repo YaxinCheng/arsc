@@ -34,10 +34,14 @@ impl From<u16> for TypeFlag {
     }
 }
 
+pub struct Arsc {
+    pub packages: Vec<Package>,
+    pub global_string_pool: StringPool,
+}
+
 pub struct Package {
     pub id: u32,
     pub name: String,
-    pub global_string_pool: StringPool,
     pub type_names: StringPool,
     pub types: Vec<Type>,
     pub key_names: StringPool,
@@ -48,20 +52,22 @@ pub struct StringPool {
     pub flags: u32,
 }
 
+impl StringPool {
+    pub(crate) const UTF8_FLAG: u32 = 0x00000100;
+}
+
 #[derive(Default)]
 pub struct Type {
-    pub id: usize,
-    pub specs: Vec<ResSpec>,
+    pub id: usize, // id - 1 is the index to type_names
+    pub specs: Vec<Spec>,
     pub configs: Vec<Config>,
 }
 
 #[derive(Default)]
-pub struct ResSpec {
-    pub res0: u8,
-    pub res1: u16,
+pub struct Spec {
     pub flags: u32,
     pub id: usize,
-    pub name_index: usize,
+    pub name_index: usize, // index to key_names
 }
 
 pub struct Config {
@@ -74,7 +80,7 @@ pub struct Config {
 
 pub struct ResourceEntry {
     pub flags: u16,
-    pub spec_id: usize,
+    pub spec_id: usize, // index to spec
     pub value: ResourceValue,
 }
 
@@ -90,7 +96,7 @@ pub struct Value {
     pub size: u16,
     pub zero: u8,
     pub r#type: u8,
-    pub data_index: usize,
+    pub data_index: usize, // index in global_string_pool
 }
 
 impl Value {

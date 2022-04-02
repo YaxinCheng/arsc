@@ -1,8 +1,8 @@
 use super::read_util;
 use crate::components::{
-    Config, Package, ResSpec, ResourceEntry, ResourceValue, StringPool, Type, TypeFlag, Value,
+    Arsc, Config, Header, Package, ResourceEntry, ResourceValue, Spec, StringPool, Type, TypeFlag,
+    Value,
 };
-use crate::Header;
 use std::collections::BTreeMap;
 use std::io::{BufReader, Read, Result, Seek, SeekFrom};
 
@@ -15,18 +15,20 @@ impl<R: Read + Seek> Parser<R> {
         Parser(BufReader::new(reader))
     }
 
-    pub fn parse(&mut self) -> Result<Vec<Package>> {
+    pub fn parse(&mut self) -> Result<Arsc> {
         let _header = Header::try_from(&mut self.0)?;
         let package_count = self.read_u32()? as usize;
-        let mut packages = Vec::with_capacity(package_count);
-        for _ in 0..package_count {
-            packages.push(self.parse_package()?)
-        }
-        Ok(packages)
+        let global_string_pool = self.parse_string_pool()?;
+        let packages = std::iter::repeat_with(|| self.parse_package())
+            .take(package_count)
+            .collect::<Result<Vec<_>>>()?;
+        Ok(Arsc {
+            global_string_pool,
+            packages,
+        })
     }
 
     fn parse_package(&mut self) -> Result<Package> {
-        let global_string_pool = self.parse_string_pool()?;
         let package_header = Header::try_from(&mut self.0)?;
         debug_assert_eq!(package_header.type_flag, TypeFlag::RES_TABLE_PACKAGE_TYPE);
         let package_id = self.read_u32()?;
@@ -57,7 +59,6 @@ impl<R: Read + Seek> Parser<R> {
         Ok(Package {
             id: package_id,
             name: package_name,
-            global_string_pool,
             type_names,
             types,
             key_names,
@@ -82,16 +83,14 @@ impl<R: Read + Seek> Parser<R> {
 
     fn parse_specs(&mut self, types: &mut [Type]) -> Result<()> {
         let type_id = self.read_u8()? as usize;
-        let res0 = self.read_u8()?;
-        let res1 = self.read_u16()?;
+        let _res0 = self.read_u8()?;
+        let _res1 = self.read_u16()?;
         let entry_count = self.read_u32()? as usize;
 
         let target_type = &mut types[type_id - 1];
         for spec_id in 0..entry_count {
             let flags = self.read_u32()?;
-            target_type.specs.push(ResSpec {
-                res0,
-                res1,
+            target_type.specs.push(Spec {
                 flags,
                 id: spec_id,
                 ..Default::default()

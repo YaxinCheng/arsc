@@ -1,5 +1,7 @@
 use arsc::parse;
+use arsc::write;
 
 fn main() {
-    parse("/Users/cheng/Desktop/resources.arsc");
+    let arsc = parse("/Users/cheng/Desktop/resources.arsc").expect("");
+    write(arsc)
 }
