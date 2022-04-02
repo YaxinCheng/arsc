@@ -41,7 +41,6 @@ impl<R: Read + Seek> TryFrom<&mut BufReader<R>> for StringPool {
             } else {
                 StringPool::read_utf16_string_item(reader)?
             };
-            println!("{}, with size: {}", string, string.chars().count());
             strings.push(string);
         }
         Ok(StringPool { strings, flags })
