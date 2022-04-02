@@ -38,7 +38,8 @@ pub struct Package {
     pub id: u32,
     pub name: String,
     pub global_string_pool: StringPool,
-    pub types: Types,
+    pub type_names: StringPool,
+    pub types: Vec<Type>,
     pub key_names: StringPool,
 }
 
@@ -47,32 +48,9 @@ pub struct StringPool {
     pub flags: u32,
 }
 
-pub struct Types {
-    pub flags: u32,
-    pub types: Vec<Type>,
-}
-
-impl From<StringPool> for Types {
-    fn from(string_pool: StringPool) -> Self {
-        let flags = string_pool.flags;
-        let types = string_pool
-            .strings
-            .into_iter()
-            .enumerate()
-            .map(|(id, name)| Type {
-                id: id + 1,
-                name,
-                ..Default::default()
-            })
-            .collect();
-        Self { flags, types }
-    }
-}
-
 #[derive(Default)]
 pub struct Type {
     pub id: usize,
-    pub name: String,
     pub specs: Vec<ResSpec>,
     pub configs: Vec<Config>,
 }

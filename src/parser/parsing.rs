@@ -1,7 +1,6 @@
 use super::read_util;
 use crate::components::{
-    Config, Package, ResSpec, ResourceEntry, ResourceValue, StringPool, Type, TypeFlag, Types,
-    Value,
+    Config, Package, ResSpec, ResourceEntry, ResourceValue, StringPool, Type, TypeFlag, Value,
 };
 use crate::Header;
 use std::collections::BTreeMap;
@@ -40,7 +39,12 @@ impl<R: Read + Seek> Parser<R> {
         let _type_id_offset = self.read_u32()?;
 
         let type_names = self.parse_string_pool()?;
-        let mut types = Types::from(type_names);
+        let mut types = (1..=type_names.strings.len())
+            .map(|id| Type {
+                id,
+                ..Default::default()
+            })
+            .collect::<Vec<_>>();
         let key_names = self.parse_string_pool()?;
 
         while let Ok(header) = Header::try_from(&mut self.0) {
@@ -54,6 +58,7 @@ impl<R: Read + Seek> Parser<R> {
             id: package_id,
             name: package_name,
             global_string_pool,
+            type_names,
             types,
             key_names,
         })
@@ -75,13 +80,13 @@ impl<R: Read + Seek> Parser<R> {
         read_util::read_string_utf16::<128, BufReader<R>>(&mut self.0)
     }
 
-    fn parse_specs(&mut self, types: &mut Types) -> Result<()> {
+    fn parse_specs(&mut self, types: &mut [Type]) -> Result<()> {
         let type_id = self.read_u8()? as usize;
         let res0 = self.read_u8()?;
         let res1 = self.read_u16()?;
         let entry_count = self.read_u32()? as usize;
 
-        let target_type = &mut types.types[type_id - 1];
+        let target_type = &mut types[type_id - 1];
         for spec_id in 0..entry_count {
             let flags = self.read_u32()?;
             target_type.specs.push(ResSpec {
@@ -95,7 +100,7 @@ impl<R: Read + Seek> Parser<R> {
         Ok(())
     }
 
-    fn parse_config(&mut self, types: &mut Types) -> Result<()> {
+    fn parse_config(&mut self, types: &mut [Type]) -> Result<()> {
         let start_pos = self.0.stream_position()? - 8;
         let type_id = self.read_u8()? as usize;
         let res0 = self.read_u8()?;
@@ -104,7 +109,7 @@ impl<R: Read + Seek> Parser<R> {
         let entry_start = self.read_u32()? as u64;
         let config_id = self.parse_config_id()?;
 
-        let resource_type = &mut types.types[type_id - 1];
+        let resource_type = &mut types[type_id - 1];
         let resources =
             self.parse_config_resources(start_pos, entry_start, entry_count, resource_type)?;
         let config = Config {
