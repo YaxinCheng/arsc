@@ -42,10 +42,7 @@ impl<R: Read + Seek> Parser<R> {
 
         let type_names = self.parse_string_pool()?;
         let mut types = (1..=type_names.strings.len())
-            .map(|id| Type {
-                id,
-                ..Default::default()
-            })
+            .map(Type::with_id)
             .collect::<Vec<_>>();
         let key_names = self.parse_string_pool()?;
 
@@ -100,17 +97,15 @@ impl<R: Read + Seek> Parser<R> {
     }
 
     fn parse_config(&mut self, types: &mut [Type]) -> Result<()> {
-        let start_pos = self.0.stream_position()? - 8;
         let type_id = self.read_u8()? as usize;
         let res0 = self.read_u8()?;
         let res1 = self.read_u16()?;
         let entry_count = self.read_u32()? as usize;
-        let entry_start = self.read_u32()? as u64;
+        let _entry_start = self.read_u32()? as u64;
         let config_id = self.parse_config_id()?;
 
         let resource_type = &mut types[type_id - 1];
-        let resources =
-            self.parse_config_resources(start_pos, entry_start, entry_count, resource_type)?;
+        let resources = self.parse_config_resources(entry_count, resource_type)?;
         let config = Config {
             res0,
             res1,
@@ -133,8 +128,6 @@ impl<R: Read + Seek> Parser<R> {
 
     fn parse_config_resources(
         &mut self,
-        start_pos: u64,
-        entry_start: u64,
         entry_count: usize,
         res_type: &mut Type,
     ) -> Result<BTreeMap<usize, ResourceEntry>> {
@@ -146,8 +139,6 @@ impl<R: Read + Seek> Parser<R> {
             if entry <= -1 {
                 continue;
             }
-            self.0
-                .seek(SeekFrom::Start(start_pos + entry_start + entry as u64))?;
             let _size = self.read_u16()?;
             let flags = self.read_u16()?;
             res_type.specs[spec_index].name_index = self.read_u32()? as usize;

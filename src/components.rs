@@ -63,6 +63,15 @@ pub struct Type {
     pub configs: Vec<Config>,
 }
 
+impl Type {
+    pub fn with_id(id: usize) -> Self {
+        Type {
+            id,
+            ..Default::default()
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct Spec {
     pub flags: u32,

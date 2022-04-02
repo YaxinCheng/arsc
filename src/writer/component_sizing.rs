@@ -17,9 +17,8 @@ impl ByteSizing for ResourceValue {
         match self {
             ResourceValue::Plain(value) => value.size(),
             ResourceValue::Bag { parent: _, values } => {
-                4 + 4
-                    + values.len() // parent + count + ...
-                    * values
+                4 + 4// parent + count
+                    + values.len() * values
                         .first()
                         .map(|(_, value)| 4 + value.size())
                         .unwrap_or(0)
@@ -36,31 +35,39 @@ impl ByteSizing for ResourceEntry {
 
 impl ByteSizing for Config {
     fn size(&self) -> usize {
-        self.id.len()// config_id
+        1 + 2 + 4 // res0 + res1 + entry_count
+        + self.id.len()// config_id
+            + self.entry_count * 4 // entries
+            + self.resources.len() * (2 + 4)// _size + name_index 
             + self
                 .resources
                 .values()
-                .map(|resource| (2 + 2 + resource.size()))// _size + flags + resource
+                .map(ByteSizing::size)
                 .sum::<usize>()
     }
 }
 
 impl ByteSizing for Spec {
     fn size(&self) -> usize {
-        4 + 4 // flags + name_index (name_index is handled in config part)
+        4 // flags. name_index is handled in config part
     }
 }
 
 impl ByteSizing for Type {
     fn size(&self) -> usize {
         // parse_spec: type_id + _res0 + _res1 + entry_count + sizeOf(specs)
-        1 + 1 + 2 + 4 + self.specs.iter().map(ByteSizing::size).sum::<usize>()
-        // parse_config: type_id + res0 + res1 + entry_count + entry_start + sizeOf(configs)
-        + 1 + 1 + 2 + 4 + 4 + self.configs.iter().map(ByteSizing::size).sum::<usize>()
+        let parse_spec = if self.specs.is_empty() {
+            0
+        } else {
+            1 + 1 + 2 + 4 + self.specs.len() * self.specs.first().map(ByteSizing::size).unwrap_or(0)
+        };
+        // parse_config: type_id + _entry_start + sizeOf(configs)
+        let parse_config = 1 + 4 + self.configs.iter().map(ByteSizing::size).sum::<usize>();
         // one header dropped for each config
-        + 8 * self.configs.len()
+        let headers_for_configs = 8 * self.configs.len();
         // one header for spec if exists
-        + if self.specs.is_empty() { 1 } else { 8 }
+        let headers_for_spec = if self.specs.is_empty() { 0 } else { 8 };
+        parse_spec + parse_config + headers_for_configs + headers_for_spec
     }
 }
 
@@ -100,9 +107,10 @@ impl StringPool {
 
 impl ByteSizing for Package {
     fn size(&self) -> usize {
-        8 + 1 + 256 // head + id + package_name 
+        8 + 4 + 256 // header + id + package_name 
         + 5 * 4 // _type_string_offset, _last_public_type, _key_string_offset, _last_public_key, _type_id_offset
         + self.type_names.size()
+        + self.types.iter().map(ByteSizing::size).sum::<usize>()
         + self.key_names.size()
     }
 }
