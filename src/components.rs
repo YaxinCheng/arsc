@@ -10,26 +10,26 @@ pub struct Header {
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum TypeFlag {
-    RES_NULL_TYPE = 0x0000,
-    RES_STRING_POOL_TYPE = 0x0001,
-    RES_TABLE_TYPE = 0x0002,
-    RES_TABLE_PACKAGE_TYPE = 0x0200,
-    RES_TABLE_TYPE_TYPE = 0x0201,
-    RES_TABLE_TYPE_SPEC_TYPE = 0x0202,
-    RES_TABLE_LIBRARY_TYPE = 0x0203,
+    ResNullType = 0x0000,
+    ResStringPoolType = 0x0001,
+    ResTableType = 0x0002,
+    ResTablePackageType = 0x0200,
+    ResTableTypeType = 0x0201,
+    ResTableTypeSpecType = 0x0202,
+    ResTableLibraryType = 0x0203,
 }
 
 impl From<u16> for TypeFlag {
     fn from(bits: u16) -> Self {
         use TypeFlag::*;
         match bits {
-            0 => RES_NULL_TYPE,
-            1 => RES_STRING_POOL_TYPE,
-            2 => RES_TABLE_TYPE,
-            0x0200 => RES_TABLE_PACKAGE_TYPE,
-            0x0201 => RES_TABLE_TYPE_TYPE,
-            0x0202 => RES_TABLE_TYPE_SPEC_TYPE,
-            0x0203 => RES_TABLE_LIBRARY_TYPE,
+            0 => ResNullType,
+            1 => ResStringPoolType,
+            2 => ResTableType,
+            0x0200 => ResTablePackageType,
+            0x0201 => ResTableTypeType,
+            0x0202 => ResTableTypeSpecType,
+            0x0203 => ResTableLibraryType,
             bits => unreachable!("Unexpected bits: {bits}"),
         }
     }
@@ -163,5 +163,6 @@ pub struct Value {
 }
 
 impl Value {
+    #[allow(dead_code)]
     pub(crate) const TYPE_STRING: u8 = 0x03;
 }

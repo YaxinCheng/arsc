@@ -16,15 +16,15 @@ pub(in crate::writer) trait WithHeader: ByteSizing {
 
 impl WithHeader for Arsc {
     const HEADER_SIZE: u16 = 0x000C;
-    const TYPE_FLAG: TypeFlag = TypeFlag::RES_TABLE_TYPE;
+    const TYPE_FLAG: TypeFlag = TypeFlag::ResTableType;
 }
 
 impl WithHeader for StringPool {
     const HEADER_SIZE: u16 = 0x001C;
-    const TYPE_FLAG: TypeFlag = TypeFlag::RES_STRING_POOL_TYPE;
+    const TYPE_FLAG: TypeFlag = TypeFlag::ResStringPoolType;
 }
 
 impl WithHeader for Package {
     const HEADER_SIZE: u16 = 0x011C;
-    const TYPE_FLAG: TypeFlag = TypeFlag::RES_TABLE_PACKAGE_TYPE;
+    const TYPE_FLAG: TypeFlag = TypeFlag::ResTablePackageType;
 }
