@@ -125,19 +125,24 @@ impl StringPool {
     }
 
     fn write_utf8_length<W: Write>(buffer: &mut W, length: usize) -> Result<usize> {
+        let mut offset = 0;
         if length > 0x7F {
-            write_util::write_u16(buffer, length)
-        } else {
-            write_util::write_u8(buffer, length)
+            offset += write_util::write_u8(buffer, (length >> 8) | 0x80)?;
         }
+        offset += write_util::write_u8(buffer, length & 0x7F)?;
+        Ok(offset)
     }
 
     fn write_utf16_length<W: Write>(buffer: &mut W, length: usize) -> Result<usize> {
+        let mut offset = 0;
         if length > 0x7FFF {
-            write_util::write_u32(buffer, length)
-        } else {
-            write_util::write_u16(buffer, length)
+            let leading_two_bytes = (length >> 16) | 0x8000;
+            offset += write_util::write_u8(buffer, leading_two_bytes & 0x7F)?;
+            offset += write_util::write_u8(buffer, leading_two_bytes >> 8)?;
         }
+        offset += write_util::write_u8(buffer, length & 0x7F)?;
+        offset += write_util::write_u8(buffer, (length >> 8) & 0x7F)?;
+        Ok(offset)
     }
 }
 
