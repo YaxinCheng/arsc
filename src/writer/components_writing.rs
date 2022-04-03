@@ -7,7 +7,16 @@ use crate::writer::components_sizing::{padding, ByteSizing};
 use crate::writer::with_header::WithHeader;
 use std::io::{Result, Write};
 
-pub trait ArscSerializable {
+/// types that implement this trait should define the function
+/// `write` to serialize and write the serialized bytes to the output
+pub(crate) trait ArscSerializable {
+    /// Serialize and write bytes to output
+    /// # Argument:
+    /// * output - a writer, where the bytes should be written to
+    /// # Returns:
+    /// the number of bytes that have been written out
+    /// # Errors:
+    /// io errors
     fn write<W: Write>(&self, output: &mut W) -> Result<usize>;
 }
 

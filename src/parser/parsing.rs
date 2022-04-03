@@ -6,7 +6,8 @@ use crate::components::{
 use std::collections::BTreeMap;
 use std::io::{BufReader, Read, Result, Seek, SeekFrom};
 
-pub struct Parser<R: Read>(BufReader<R>);
+/// Parser parses from a buffered reader and generates an arsc struct
+pub(crate) struct Parser<R: Read>(BufReader<R>);
 
 impl<R: Read + Seek> Parser<R> {
     pub fn new(reader: R) -> Self {

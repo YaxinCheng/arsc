@@ -3,11 +3,17 @@ use crate::components::{
     Value,
 };
 
+/// A trait for objects that have constant sizes
+/// when being written out in arsc format
 pub(in crate::writer) trait ConstByteSizing {
+    /// The number of bytes required to write out this type
     const SIZE: usize;
 }
 
+/// A trait for objects whose content affects its size
+/// when being written out in arsc format
 pub(in crate::writer) trait ByteSizing {
+    /// The number of bytes required to write out this type
     fn size(&self) -> usize;
 }
 
@@ -128,6 +134,12 @@ impl ConstByteSizing for Header {
     const SIZE: usize = 8;
 }
 
-pub fn padding(size: usize) -> usize {
+/// Calculate the padding size for a given size
+///
+/// # Argument:
+/// * size - the size needs to be padded
+/// # Returns:
+/// the padding size with respect to 4
+pub(crate) fn padding(size: usize) -> usize {
     (4 - size % 4) % 4
 }

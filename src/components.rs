@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
 
+/// Header is the ResTable_header.
+/// Each chunk in an arsc file has a header
 #[derive(Debug)]
 pub struct Header {
     pub resource_type: ResourceType,
@@ -34,11 +36,26 @@ impl From<u16> for ResourceType {
     }
 }
 
+/// Arsc represents an entire arsc file.
+/// Itself is a chunk, with type `RES_TABLE_TYPE`
+/// It consists of two parts:
+///
+/// 1. A global string pool, with type `RES_STRING_POOL_TYPE`
+/// 2. A collection of packages, each with type `RES_TABLE_PACKAGE_TYPE`
+#[derive(Debug)]
 pub struct Arsc {
     pub packages: Vec<Package>,
     pub global_string_pool: StringPool,
 }
 
+/// A chunk with header type `ResTable_package`.
+/// It consists of multiple parts:
+///
+/// 1. package id
+/// 2. package name
+/// 3. type names string pool
+/// 3. key names string pool
+#[derive(Debug)]
 pub struct Package {
     pub id: u32,
     pub name: String,
@@ -47,18 +64,32 @@ pub struct Package {
     pub key_names: StringPool,
 }
 
+/// StringPool is a chunk that stores all the strings used in this chunk.
+/// It consists of multiple parts:
+///
+/// 1. string offset array
+/// 2. style offset array
+/// 3. string content
+/// 4. style content
+/// 5. flags indicating the encoding (UTF8 or UTF-16) or sorting condition
+#[derive(Debug)]
 pub struct StringPool {
     pub strings: Vec<String>,
     pub flags: u32,
 }
 
 impl StringPool {
+    /// The flag indicates whether the strings are encoded with UTF-8
     pub(crate) const UTF8_FLAG: u32 = 0x00000100;
 }
 
-#[derive(Default)]
+/// Type is derived from type name string pool. It is an abstraction
+/// from the original arsc file. It contains specs and configs, which
+/// can be found in the arsc file
+#[derive(Default, Debug)]
 pub struct Type {
-    pub id: usize, // id - 1 is the index to type_names
+    /// id - 1 is the index pointing to a type name, that can be found at `type_names[id-1]`
+    pub id: usize,
     pub specs: Option<Specs>,
     pub configs: Vec<Config>,
 }
@@ -72,6 +103,8 @@ impl Type {
     }
 }
 
+/// Specs is a chunk type with header type `RES_TABLE_TYPE_SPEC_TYPE`
+#[derive(Debug)]
 pub struct Specs {
     pub type_id: usize,
     pub res0: u8,
@@ -85,11 +118,12 @@ impl Specs {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Spec {
     pub flags: u32,
     pub id: usize,
-    pub name_index: usize, // index to key_names
+    /// name_index points to the name of this spec, at `key_names[name_index]`
+    pub name_index: usize,
 }
 
 impl Spec {
@@ -102,6 +136,8 @@ impl Spec {
     }
 }
 
+/// Config is a chunk type with header type `RES_TABLE_TYPE_TYPE`
+#[derive(Debug)]
 pub struct Config {
     pub type_id: usize,
     pub res0: u8,
@@ -111,17 +147,26 @@ pub struct Config {
     pub resources: BTreeMap<usize, ResourceEntry>,
 }
 
+#[derive(Debug)]
 pub struct ResourceEntry {
     pub flags: u16,
-    pub spec_id: usize, // index to spec
+    /// spec_id points to the specific spec at `specs[spec_id]` that is associated with this resource
+    pub spec_id: usize,
     pub name_index: usize,
     pub value: ResourceValue,
 }
 
 impl ResourceEntry {
+    /// A flag indicating whether the resource is a plain value or a bag of values
     pub(crate) const ENTRY_FLAG_COMPLEX: u16 = 0x0001;
 }
 
+/// Resource values can have two types:
+///
+/// 1. Plain value
+/// 2. Bag
+///
+/// Bag is a collection of values with a `parent` pointer
 #[derive(Debug, Eq, PartialEq)]
 pub enum ResourceValue {
     Bag {
@@ -131,15 +176,22 @@ pub enum ResourceValue {
     Plain(Value),
 }
 
+///
 #[derive(Debug, Eq, PartialEq)]
 pub struct Value {
     pub size: u16,
     pub zero: u8,
     pub r#type: u8,
-    pub data_index: usize, // index in global_string_pool
+    /// data_index points to `global_string_pool[data_index]` to represent a string
+    pub data_index: usize,
 }
 
 impl Value {
+    const TYPE_STRING: u8 = 0x03;
+
+    /// return true if the type of the Value represents a string
     #[allow(dead_code)]
-    pub(crate) const TYPE_STRING: u8 = 0x03;
+    pub fn is_string(&self) -> bool {
+        self.r#type & Self::TYPE_STRING != 0
+    }
 }
