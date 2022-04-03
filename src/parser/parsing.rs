@@ -101,12 +101,13 @@ impl<R: Read + Seek> Parser<R> {
         let res0 = self.read_u8()?;
         let res1 = self.read_u16()?;
         let entry_count = self.read_u32()? as usize;
-        let _entry_start = self.read_u32()? as u64;
+        let _entry_start = self.read_u32()?;
         let config_id = self.parse_config_id()?;
 
         let resource_type = &mut types[type_id - 1];
         let resources = self.parse_config_resources(entry_count, resource_type)?;
         let config = Config {
+            type_id,
             res0,
             res1,
             entry_count,

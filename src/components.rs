@@ -7,7 +7,7 @@ pub struct Header {
     pub size: u64,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum TypeFlag {
     RES_NULL_TYPE = 0x0000,
     RES_STRING_POOL_TYPE = 0x0001,
@@ -80,6 +80,7 @@ pub struct Spec {
 }
 
 pub struct Config {
+    pub type_id: usize,
     pub res0: u8,
     pub res1: u16,
     pub entry_count: usize,
