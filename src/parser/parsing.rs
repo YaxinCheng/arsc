@@ -1,7 +1,7 @@
 use super::read_util;
 use crate::components::{
-    Arsc, Config, Header, Package, ResourceEntry, ResourceValue, Spec, Specs, StringPool, Type,
-    TypeFlag, Value,
+    Arsc, Config, Header, Package, ResourceEntry, ResourceType, ResourceValue, Spec, Specs,
+    StringPool, Type, Value,
 };
 use std::collections::BTreeMap;
 use std::io::{BufReader, Read, Result, Seek, SeekFrom};
@@ -30,7 +30,7 @@ impl<R: Read + Seek> Parser<R> {
 
     fn parse_package(&mut self) -> Result<Package> {
         let package_header = Header::try_from(&mut self.0)?;
-        debug_assert_eq!(package_header.type_flag, TypeFlag::ResTablePackageType);
+        debug_assert_eq!(package_header.resource_type, ResourceType::TablePackage);
         let package_id = self.read_u32()?;
         let package_name = self.parse_package_name()?;
 
@@ -47,9 +47,9 @@ impl<R: Read + Seek> Parser<R> {
         let key_names = self.parse_string_pool()?;
 
         while let Ok(header) = Header::try_from(&mut self.0) {
-            match header.type_flag {
-                TypeFlag::ResTableTypeSpecType => self.parse_specs(&mut types)?,
-                TypeFlag::ResTableTypeType => self.parse_config(&mut types)?,
+            match header.resource_type {
+                ResourceType::TableTypeSpec => self.parse_specs(&mut types)?,
+                ResourceType::TableType => self.parse_config(&mut types)?,
                 flag => unreachable!("Unexpected flag: {flag:?}"),
             }
         }
@@ -66,7 +66,7 @@ impl<R: Read + Seek> Parser<R> {
         let start = self.0.stream_position()?;
 
         let header = Header::try_from(&mut self.0)?;
-        assert_eq!(header.type_flag, TypeFlag::ResStringPoolType);
+        assert_eq!(header.resource_type, ResourceType::StringPool);
         let string_pool = StringPool::try_from(&mut self.0)?;
 
         self.0.seek(SeekFrom::Start(start + header.size))?;

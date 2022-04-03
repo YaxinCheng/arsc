@@ -2,33 +2,33 @@ use std::collections::BTreeMap;
 
 #[derive(Debug)]
 pub struct Header {
-    pub type_flag: TypeFlag,
+    pub resource_type: ResourceType,
     pub header_size: u16,
     pub size: u64,
 }
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-pub enum TypeFlag {
-    ResNullType = 0x0000,
-    ResStringPoolType = 0x0001,
-    ResTableType = 0x0002,
-    ResTablePackageType = 0x0200,
-    ResTableTypeType = 0x0201,
-    ResTableTypeSpecType = 0x0202,
-    ResTableLibraryType = 0x0203,
+pub enum ResourceType {
+    Null = 0x0000,
+    StringPool = 0x0001,
+    Table = 0x0002,
+    TablePackage = 0x0200,
+    TableType = 0x0201,
+    TableTypeSpec = 0x0202,
+    TableLibrary = 0x0203,
 }
 
-impl From<u16> for TypeFlag {
+impl From<u16> for ResourceType {
     fn from(bits: u16) -> Self {
-        use TypeFlag::*;
+        use ResourceType::*;
         match bits {
-            0 => ResNullType,
-            1 => ResStringPoolType,
-            2 => ResTableType,
-            0x0200 => ResTablePackageType,
-            0x0201 => ResTableTypeType,
-            0x0202 => ResTableTypeSpecType,
-            0x0203 => ResTableLibraryType,
+            0 => Null,
+            1 => StringPool,
+            2 => Table,
+            0x0200 => TablePackage,
+            0x0201 => TableType,
+            0x0202 => TableTypeSpec,
+            0x0203 => TableLibrary,
             bits => unreachable!("Unexpected bits: {bits}"),
         }
     }

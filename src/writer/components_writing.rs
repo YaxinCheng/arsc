@@ -48,7 +48,7 @@ impl ArscSerializable for ResourceEntry {
 
 impl ArscSerializable for Header {
     fn write<W: Write>(&self, output: &mut W) -> Result<usize> {
-        let mut written = write_util::write_u16(output, self.type_flag as u16)?;
+        let mut written = write_util::write_u16(output, self.resource_type as u16)?;
         written += write_util::write_u16(output, self.header_size)?;
         written += write_util::write_u32(output, self.size)?;
         Ok(written)

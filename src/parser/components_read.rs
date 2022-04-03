@@ -1,5 +1,5 @@
 use super::read_util;
-use crate::components::{Header, StringPool, TypeFlag, Value};
+use crate::components::{Header, ResourceType, StringPool, Value};
 use std::io::{BufReader, Error, Read, Seek, SeekFrom};
 
 impl<R: Read> TryFrom<&mut BufReader<R>> for Header {
@@ -7,11 +7,11 @@ impl<R: Read> TryFrom<&mut BufReader<R>> for Header {
 
     fn try_from(reader: &mut BufReader<R>) -> Result<Self, Self::Error> {
         let type_bits = read_util::read_u16(reader)?;
-        let r#type = TypeFlag::from(type_bits);
+        let r#type = ResourceType::from(type_bits);
         let header_size = read_util::read_u16(reader)?;
         let size = read_util::read_u32(reader)? as u64;
         Ok(Header {
-            type_flag: r#type,
+            resource_type: r#type,
             header_size,
             size,
         })

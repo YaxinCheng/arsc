@@ -12,6 +12,6 @@ pub fn parse<P: AsRef<Path>>(path: P) -> std::io::Result<components::Arsc> {
     parser::parse(file)
 }
 
-pub fn write<P: AsRef<Path>>(arsc: components::Arsc, outpath: P) -> std::io::Result<usize> {
-    writer::write(arsc, outpath.as_ref())
+pub fn write<P: AsRef<Path>>(arsc: components::Arsc, output_path: P) -> std::io::Result<usize> {
+    writer::write(arsc, output_path.as_ref())
 }
