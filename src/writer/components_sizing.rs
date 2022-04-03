@@ -1,5 +1,6 @@
 use crate::components::{
-    Arsc, Config, Header, Package, ResourceEntry, ResourceValue, Spec, StringPool, Type, Value,
+    Arsc, Config, Header, Package, ResourceEntry, ResourceValue, Spec, Specs, StringPool, Type,
+    Value,
 };
 
 pub(in crate::writer) trait ConstByteSizing {
@@ -57,24 +58,20 @@ impl ConstByteSizing for Spec {
     const SIZE: usize = 4; // flags. name_index is handled in config part
 }
 
+impl ByteSizing for Specs {
+    fn size(&self) -> usize {
+        // parse_spec: header + type_id + _res0 + _res1 + entry_count + sizeOf(specs)
+        Header::SIZE + 1 + 1 + 2 + 4 + self.len() * Spec::SIZE
+    }
+}
+
 impl ByteSizing for Type {
     fn size(&self) -> usize {
-        // parse_spec: type_id + _res0 + _res1 + entry_count + sizeOf(specs)
-        let parse_spec = if self.specs.is_empty() {
-            0
-        } else {
-            1 + 1 + 2 + 4 + self.specs.len() * Spec::SIZE
-        };
+        let parse_spec = self.specs.as_ref().map(ByteSizing::size).unwrap_or(0);
         let parse_config = self.configs.iter().map(ByteSizing::size).sum::<usize>();
         // one header dropped for each config
         let headers_for_configs = Header::SIZE * self.configs.len();
-        // one header for spec if exists
-        let headers_for_spec = if self.specs.is_empty() {
-            0
-        } else {
-            Header::SIZE
-        };
-        parse_spec + parse_config + headers_for_configs + headers_for_spec
+        parse_spec + parse_config + headers_for_configs
     }
 }
 

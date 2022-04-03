@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::ops::{Index, IndexMut};
 
 #[derive(Debug)]
 pub struct Header {
@@ -59,7 +60,7 @@ impl StringPool {
 #[derive(Default)]
 pub struct Type {
     pub id: usize, // id - 1 is the index to type_names
-    pub specs: Vec<Spec>,
+    pub specs: Option<Specs>,
     pub configs: Vec<Config>,
 }
 
@@ -72,11 +73,63 @@ impl Type {
     }
 }
 
+pub struct Specs(Vec<Spec>);
+
+impl FromIterator<Spec> for Specs {
+    fn from_iter<T: IntoIterator<Item = Spec>>(iter: T) -> Self {
+        let specs = iter.into_iter().collect::<Vec<_>>();
+        Specs(specs)
+    }
+}
+
+impl IntoIterator for Specs {
+    type Item = Spec;
+    type IntoIter = <Vec<Spec> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl Index<usize> for Specs {
+    type Output = Spec;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.0[index]
+    }
+}
+
+impl IndexMut<usize> for Specs {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index]
+    }
+}
+
+impl Specs {
+    pub fn set_name_index(&mut self, spec_index: usize, name_index: usize) {
+        self[spec_index].name_index = name_index;
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
 #[derive(Default)]
 pub struct Spec {
     pub flags: u32,
     pub id: usize,
     pub name_index: usize, // index to key_names
+}
+
+impl Spec {
+    pub fn new(flags: u32, id: usize) -> Self {
+        Spec {
+            flags,
+            id,
+            ..Default::default()
+        }
+    }
 }
 
 pub struct Config {

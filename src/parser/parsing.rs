@@ -1,7 +1,7 @@
 use super::read_util;
 use crate::components::{
-    Arsc, Config, Header, Package, ResourceEntry, ResourceValue, Spec, StringPool, Type, TypeFlag,
-    Value,
+    Arsc, Config, Header, Package, ResourceEntry, ResourceValue, Spec, Specs, StringPool, Type,
+    TypeFlag, Value,
 };
 use std::collections::BTreeMap;
 use std::io::{BufReader, Read, Result, Seek, SeekFrom};
@@ -85,14 +85,14 @@ impl<R: Read + Seek> Parser<R> {
         let entry_count = self.read_u32()? as usize;
 
         let target_type = &mut types[type_id - 1];
-        for spec_id in 0..entry_count {
-            let flags = self.read_u32()?;
-            target_type.specs.push(Spec {
-                flags,
-                id: spec_id,
-                ..Default::default()
-            });
-        }
+        let specs = std::iter::repeat_with(|| self.read_u32())
+            .take(entry_count)
+            .enumerate()
+            .map(|(id, flags)| Result::Ok(Spec::new(flags?, id)))
+            .collect::<Result<Specs>>()?;
+        debug_assert!(target_type.specs.is_none(), "Target spec is not none");
+        debug_assert!(specs.len() > 0, "Specs cannot be empty");
+        target_type.specs.replace(specs);
         Ok(())
     }
 
@@ -142,7 +142,11 @@ impl<R: Read + Seek> Parser<R> {
             }
             let _size = self.read_u16()?;
             let flags = self.read_u16()?;
-            res_type.specs[spec_index].name_index = self.read_u32()? as usize;
+            res_type
+                .specs
+                .as_mut()
+                .expect("Specs is not set")
+                .set_name_index(spec_index, self.read_u32()? as usize);
             let resource = self.parse_res_entry(flags, spec_index)?;
             resources.insert(spec_index, resource);
         }
