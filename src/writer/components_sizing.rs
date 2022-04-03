@@ -41,7 +41,7 @@ impl ByteSizing for ResourceEntry {
 
 impl ByteSizing for Config {
     fn size(&self) -> usize {
-        1 + 1 + 2 + 4 + 4 // type_id + res0 + res1 + entry_count + _entry_start
+        Header::SIZE + 1 + 1 + 2 + 4 + 4 // type_id + res0 + res1 + entry_count + _entry_start
             + self.id.len()// config_id
             + padding(self.id.len())// config_id_padding
             + self.entry_count * 4 // entries
@@ -69,9 +69,7 @@ impl ByteSizing for Type {
     fn size(&self) -> usize {
         let parse_spec = self.specs.as_ref().map(ByteSizing::size).unwrap_or(0);
         let parse_config = self.configs.iter().map(ByteSizing::size).sum::<usize>();
-        // one header dropped for each config
-        let headers_for_configs = Header::SIZE * self.configs.len();
-        parse_spec + parse_config + headers_for_configs
+        parse_spec + parse_config
     }
 }
 
