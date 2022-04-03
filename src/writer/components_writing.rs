@@ -111,12 +111,12 @@ impl StringPool {
         for string in &self.strings {
             if self.flags & StringPool::UTF8_FLAG != 0 {
                 let char_count = string.chars().count();
-                position += Self::write_utf8_length(char_count, buffer)?;
-                position += Self::write_utf8_length(string.len(), buffer)?;
+                position += Self::write_utf8_length(buffer, char_count)?;
+                position += Self::write_utf8_length(buffer, string.len())?;
                 position += buffer.write(string.as_bytes())?;
                 position += write_util::write_u8(buffer, 0)?;
             } else {
-                position += Self::write_utf16_length(string.encode_utf16().count(), buffer)?;
+                position += Self::write_utf16_length(buffer, string.encode_utf16().count())?;
                 position += write_util::write_string_utf16(buffer, string)?;
                 position += write_util::write_u16(buffer, 0)?;
             }
@@ -124,25 +124,20 @@ impl StringPool {
         Ok(position)
     }
 
-    fn write_utf8_length<W: Write>(length: usize, buffer: &mut W) -> Result<usize> {
-        let mut offset = 0;
+    fn write_utf8_length<W: Write>(buffer: &mut W, length: usize) -> Result<usize> {
         if length > 0x7F {
-            offset += write_util::write_u8(buffer, (length >> 8) | 0x80)?;
+            write_util::write_u16(buffer, length)
+        } else {
+            write_util::write_u8(buffer, length)
         }
-        offset += write_util::write_u8(buffer, length & 0x7F)?;
-        Ok(offset)
     }
 
-    fn write_utf16_length<W: Write>(length: usize, buffer: &mut W) -> Result<usize> {
-        let mut offset = 0;
+    fn write_utf16_length<W: Write>(buffer: &mut W, length: usize) -> Result<usize> {
         if length > 0x7FFF {
-            let leading_two_bytes = (length >> 16) | 0x8000;
-            offset += write_util::write_u8(buffer, leading_two_bytes & 0x7F)?;
-            offset += write_util::write_u8(buffer, leading_two_bytes >> 8)?;
+            write_util::write_u32(buffer, length)
+        } else {
+            write_util::write_u16(buffer, length)
         }
-        offset += write_util::write_u8(buffer, length & 0x7F)?;
-        offset += write_util::write_u8(buffer, (length >> 8) & 0x7F)?;
-        Ok(offset)
     }
 }
 
