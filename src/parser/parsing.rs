@@ -8,8 +8,6 @@ use std::io::{BufReader, Read, Result, Seek, SeekFrom};
 
 pub struct Parser<R: Read>(BufReader<R>);
 
-const ENTRY_FLAG_COMPLEX: u16 = 0x0001;
-
 impl<R: Read + Seek> Parser<R> {
     pub fn new(reader: R) -> Self {
         Parser(BufReader::new(reader))
@@ -165,7 +163,7 @@ impl<R: Read + Seek> Parser<R> {
         name_index: usize,
         spec_id: usize,
     ) -> Result<ResourceEntry> {
-        let value = if flags & ENTRY_FLAG_COMPLEX != 0 {
+        let value = if flags & ResourceEntry::ENTRY_FLAG_COMPLEX != 0 {
             let parent = self.read_u32()?;
             let count = self.read_u32()? as usize;
             let mut values = Vec::with_capacity(count);

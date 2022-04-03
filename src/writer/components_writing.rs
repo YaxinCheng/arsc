@@ -40,7 +40,12 @@ impl ArscSerializable for ResourceValue {
 
 impl ArscSerializable for ResourceEntry {
     fn write<W: Write>(&self, output: &mut W) -> Result<usize> {
-        let mut written = write_util::write_u16(output, self.value.size())?;
+        let size = if self.flags & ResourceEntry::ENTRY_FLAG_COMPLEX != 0 {
+            16
+        } else {
+            8
+        };
+        let mut written = write_util::write_u16(output, size)?;
         written += write_util::write_u16(output, self.flags)?;
         written += write_util::write_u32(output, self.name_index)?;
         written += self.value.write(output)?;

@@ -118,6 +118,11 @@ pub struct ResourceEntry {
     pub value: ResourceValue,
 }
 
+impl ResourceEntry {
+    pub(crate) const ENTRY_FLAG_COMPLEX: u16 = 0x0001;
+}
+
+#[derive(Debug, Eq, PartialEq)]
 pub enum ResourceValue {
     Bag {
         parent: u32,
@@ -126,6 +131,7 @@ pub enum ResourceValue {
     Plain(Value),
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub struct Value {
     pub size: u16,
     pub zero: u8,
