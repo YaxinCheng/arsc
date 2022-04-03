@@ -1,6 +1,9 @@
 use super::write_util;
-use crate::components::{Header, ResourceEntry, ResourceValue, StringPool, Value};
-use crate::writer::components_sizing::padding;
+use crate::components::{
+    Arsc, Config, Header, Package, ResourceEntry, ResourceValue, Spec, Specs, StringPool, Type,
+    Value,
+};
+use crate::writer::components_sizing::{padding, ByteSizing};
 use crate::writer::with_header::WithHeader;
 use std::io::{Result, Write};
 
@@ -13,7 +16,7 @@ impl ArscSerializable for Value {
         let mut written = write_util::write_u16(output, self.size)?;
         written += write_util::write_u8(output, self.zero)?;
         written += write_util::write_u8(output, self.r#type)?;
-        written += write_util::write_u32(output, self.r#type)?;
+        written += write_util::write_u32(output, self.data_index)?;
         Ok(written)
     }
 }
@@ -140,5 +143,121 @@ impl StringPool {
         offset += write_util::write_u8(buffer, length & 0x7F)?;
         offset += write_util::write_u8(buffer, (length >> 8) & 0x7F)?;
         Ok(offset)
+    }
+}
+
+impl ArscSerializable for Specs {
+    fn write<W: Write>(&self, output: &mut W) -> Result<usize> {
+        let mut position = self.header().write(output)?;
+        position += write_util::write_u8(output, self.type_id)?;
+        position += write_util::write_u8(output, self.res0)?;
+        position += write_util::write_u16(output, self.res1)?;
+        position += write_util::write_u32(output, self.specs.len())?;
+        for spec in &self.specs {
+            position += spec.write(output)?;
+        }
+        Ok(position)
+    }
+}
+
+impl ArscSerializable for Spec {
+    fn write<W: Write>(&self, output: &mut W) -> Result<usize> {
+        write_util::write_u32(output, self.flags)
+    }
+}
+
+impl ArscSerializable for Config {
+    fn write<W: Write>(&self, output: &mut W) -> Result<usize> {
+        let mut position = self.header().write(output)?;
+        position += write_util::write_u8(output, self.type_id)?;
+        position += write_util::write_u8(output, self.res0)?;
+        position += write_util::write_u16(output, self.res1)?;
+        position += write_util::write_u32(output, self.entry_count)?;
+        let entry_start =
+            position + 4 + self.id.len() + padding(self.id.len()) + self.entry_count * 4;
+        position += write_util::write_u32(output, entry_start)?;
+        position += output.write(&self.id)?;
+        position += output.write(&vec![0; padding(self.id.len())])?;
+        position += self.write_resources(output)?;
+
+        Ok(position)
+    }
+}
+
+impl Config {
+    fn write_resources<W: Write>(&self, output: &mut W) -> Result<usize> {
+        let mut position = self.write_entries(output)?;
+        for resource in self.resources.values() {
+            position += write_util::write_u16(output, resource.value.size())?;
+            position += write_util::write_u32(output, resource.name_index)?;
+            position += resource.write(output)?;
+        }
+        Ok(position)
+    }
+
+    fn write_entries<W: Write>(&self, output: &mut W) -> Result<usize> {
+        let mut offset = 0;
+        let mut written = 0;
+        for entry in 0..self.entry_count {
+            if let Some(resource) = self.resources.get(&entry) {
+                written += write_util::write_i32(output, offset)?;
+                offset += 2 + 2 + 4 + resource.size();
+            } else {
+                written += write_util::write_i32(output, -1)?;
+            }
+        }
+        Ok(written)
+    }
+}
+
+impl ArscSerializable for Type {
+    fn write<W: Write>(&self, output: &mut W) -> Result<usize> {
+        let mut position = 0;
+        for specs in &self.specs {
+            position += specs.write(output)?;
+        }
+        for config in &self.configs {
+            position += config.write(output)?;
+        }
+        Ok(position)
+    }
+}
+
+impl ArscSerializable for Package {
+    fn write<W: Write>(&self, output: &mut W) -> Result<usize> {
+        let mut position = self.header().write(output)?;
+        position += write_util::write_u32(output, self.id)?;
+        let string_written = write_util::write_string_utf16(output, &self.name)?;
+        position += string_written;
+        if string_written < 256 {
+            position += output.write(&vec![0; 256 - string_written])?;
+        }
+
+        let type_string_offset = position + 5 * 4;
+        position += write_util::write_u32(output, type_string_offset)?; // type_string_offset
+        position += write_util::write_u32(output, 0)?; // last_public_type
+        let key_string_offset = type_string_offset + self.type_names.size();
+        position += write_util::write_u32(output, key_string_offset)?; // key_string_offset
+        position += write_util::write_u32(output, 0)?; // last_public_key
+        position += write_util::write_u32(output, 0)?; // type_id_offset
+
+        position += self.type_names.write(output)?;
+        position += self.key_names.write(output)?;
+        for r#type in &self.types {
+            position += r#type.write(output)?;
+        }
+        Ok(position)
+    }
+}
+
+impl ArscSerializable for Arsc {
+    fn write<W: Write>(&self, output: &mut W) -> Result<usize> {
+        let mut position = self.header().write(output)?;
+        position += write_util::write_u32(output, self.packages.len())?;
+        position += self.global_string_pool.write(output)?;
+        for package in &self.packages {
+            position += package.write(output)?;
+        }
+        Ok(position)
     }
 }

@@ -35,7 +35,7 @@ impl ByteSizing for ResourceValue {
 
 impl ByteSizing for ResourceEntry {
     fn size(&self) -> usize {
-        2 + self.value.size() // flags + value. `spec_id` is not read in
+        2 + 4 + self.value.size() // flags + name_index + value. `spec_id` is not read in
     }
 }
 
@@ -45,7 +45,7 @@ impl ByteSizing for Config {
             + self.id.len()// config_id
             + padding(self.id.len())// config_id_padding
             + self.entry_count * 4 // entries
-            + self.resources.len() * (2 + 4)// _size + name_index 
+            + self.resources.len() * 2// _size + name_index 
             + self
                 .resources
                 .values()
@@ -61,7 +61,7 @@ impl ConstByteSizing for Spec {
 impl ByteSizing for Specs {
     fn size(&self) -> usize {
         // parse_spec: header + type_id + _res0 + _res1 + entry_count + sizeOf(specs)
-        Header::SIZE + 1 + 1 + 2 + 4 + self.len() * Spec::SIZE
+        Header::SIZE + 1 + 1 + 2 + 4 + self.specs.len() * Spec::SIZE
     }
 }
 

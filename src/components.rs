@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::ops::{Index, IndexMut};
 
 #[derive(Debug)]
 pub struct Header {
@@ -73,45 +72,16 @@ impl Type {
     }
 }
 
-pub struct Specs(Vec<Spec>);
-
-impl FromIterator<Spec> for Specs {
-    fn from_iter<T: IntoIterator<Item = Spec>>(iter: T) -> Self {
-        let specs = iter.into_iter().collect::<Vec<_>>();
-        Specs(specs)
-    }
-}
-
-impl IntoIterator for Specs {
-    type Item = Spec;
-    type IntoIter = <Vec<Spec> as IntoIterator>::IntoIter;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
-impl Index<usize> for Specs {
-    type Output = Spec;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
-
-impl IndexMut<usize> for Specs {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
-    }
+pub struct Specs {
+    pub type_id: usize,
+    pub res0: u8,
+    pub res1: u16,
+    pub specs: Vec<Spec>,
 }
 
 impl Specs {
     pub fn set_name_index(&mut self, spec_index: usize, name_index: usize) {
-        self[spec_index].name_index = name_index;
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
+        self.specs[spec_index].name_index = name_index;
     }
 }
 
@@ -144,6 +114,7 @@ pub struct Config {
 pub struct ResourceEntry {
     pub flags: u16,
     pub spec_id: usize, // index to spec
+    pub name_index: usize,
     pub value: ResourceValue,
 }
 

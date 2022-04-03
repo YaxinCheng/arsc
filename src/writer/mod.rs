@@ -1,13 +1,15 @@
 use crate::components::Arsc;
-use crate::writer::writing::Writer;
+use components_writing::ArscSerializable;
+use std::fs::File;
+use std::io::{BufWriter, Result};
+use std::path::Path;
 
 mod components_sizing;
 mod components_writing;
 mod with_header;
 mod write_util;
-mod writing;
 
-pub fn write(arsc: Arsc) {
-    let size = arsc.packages[0].key_names.size();
-    println!("{size}")
+pub fn write(arsc: Arsc, outpath: &Path) -> Result<usize> {
+    let mut writer = BufWriter::new(File::create(outpath)?);
+    arsc.write(&mut writer)
 }

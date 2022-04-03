@@ -80,8 +80,8 @@ impl<R: Read + Seek> Parser<R> {
 
     fn parse_specs(&mut self, types: &mut [Type]) -> Result<()> {
         let type_id = self.read_u8()? as usize;
-        let _res0 = self.read_u8()?;
-        let _res1 = self.read_u16()?;
+        let res0 = self.read_u8()?;
+        let res1 = self.read_u16()?;
         let entry_count = self.read_u32()? as usize;
 
         let target_type = &mut types[type_id - 1];
@@ -89,10 +89,15 @@ impl<R: Read + Seek> Parser<R> {
             .take(entry_count)
             .enumerate()
             .map(|(id, flags)| Result::Ok(Spec::new(flags?, id)))
-            .collect::<Result<Specs>>()?;
+            .collect::<Result<Vec<_>>>()?;
         debug_assert!(target_type.specs.is_none(), "Target spec is not none");
-        debug_assert!(specs.len() > 0, "Specs cannot be empty");
-        target_type.specs.replace(specs);
+        debug_assert!(!specs.is_empty(), "Specs cannot be empty");
+        target_type.specs.replace(Specs {
+            type_id,
+            res0,
+            res1,
+            specs,
+        });
         Ok(())
     }
 
@@ -142,18 +147,24 @@ impl<R: Read + Seek> Parser<R> {
             }
             let _size = self.read_u16()?;
             let flags = self.read_u16()?;
+            let name_index = self.read_u32()? as usize;
             res_type
                 .specs
                 .as_mut()
                 .expect("Specs is not set")
-                .set_name_index(spec_index, self.read_u32()? as usize);
-            let resource = self.parse_res_entry(flags, spec_index)?;
+                .set_name_index(spec_index, name_index);
+            let resource = self.parse_res_entry(flags, name_index, spec_index)?;
             resources.insert(spec_index, resource);
         }
         Ok(resources)
     }
 
-    fn parse_res_entry(&mut self, flags: u16, spec_id: usize) -> Result<ResourceEntry> {
+    fn parse_res_entry(
+        &mut self,
+        flags: u16,
+        name_index: usize,
+        spec_id: usize,
+    ) -> Result<ResourceEntry> {
         let value = if flags & ENTRY_FLAG_COMPLEX != 0 {
             let parent = self.read_u32()?;
             let count = self.read_u32()? as usize;
@@ -170,6 +181,7 @@ impl<R: Read + Seek> Parser<R> {
         Ok(ResourceEntry {
             flags,
             spec_id,
+            name_index,
             value,
         })
     }

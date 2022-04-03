@@ -1,5 +1,5 @@
 use super::components_sizing::ByteSizing;
-use crate::components::{Arsc, Header, Package, StringPool, TypeFlag};
+use crate::components::{Arsc, Config, Header, Package, Specs, StringPool, TypeFlag};
 
 pub(in crate::writer) trait WithHeader: ByteSizing {
     const HEADER_SIZE: u16;
@@ -27,4 +27,14 @@ impl WithHeader for StringPool {
 impl WithHeader for Package {
     const HEADER_SIZE: u16 = 0x011C;
     const TYPE_FLAG: TypeFlag = TypeFlag::ResTablePackageType;
+}
+
+impl WithHeader for Specs {
+    const HEADER_SIZE: u16 = 0x0010;
+    const TYPE_FLAG: TypeFlag = TypeFlag::ResTableTypeSpecType;
+}
+
+impl WithHeader for Config {
+    const HEADER_SIZE: u16 = 0x0040;
+    const TYPE_FLAG: TypeFlag = TypeFlag::ResTableTypeType;
 }
