@@ -25,7 +25,7 @@ impl WithHeader for StringPool {
 }
 
 impl WithHeader for Package {
-    const HEADER_SIZE: u16 = 0x011C;
+    const HEADER_SIZE: u16 = 0x0120;
     const TYPE_FLAG: ResourceType = ResourceType::TablePackage;
 }
 
@@ -35,6 +35,6 @@ impl WithHeader for Specs {
 }
 
 impl WithHeader for Config {
-    const HEADER_SIZE: u16 = 0x0040;
+    const HEADER_SIZE: u16 = 0x0054;
     const TYPE_FLAG: ResourceType = ResourceType::TableType;
 }

@@ -131,7 +131,7 @@ impl StringPool {
         if length > 0x7F {
             offset += write_util::write_u8(buffer, (length >> 8) | 0x80)?;
         }
-        offset += write_util::write_u8(buffer, length & 0x7F)?;
+        offset += write_util::write_u8(buffer, length & 0xFF)?;
         Ok(offset)
     }
 
@@ -139,11 +139,11 @@ impl StringPool {
         let mut offset = 0;
         if length > 0x7FFF {
             let leading_two_bytes = (length >> 16) | 0x8000;
-            offset += write_util::write_u8(buffer, leading_two_bytes & 0x7F)?;
+            offset += write_util::write_u8(buffer, leading_two_bytes & 0xFF)?;
             offset += write_util::write_u8(buffer, leading_two_bytes >> 8)?;
         }
-        offset += write_util::write_u8(buffer, length & 0x7F)?;
-        offset += write_util::write_u8(buffer, (length >> 8) & 0x7F)?;
+        offset += write_util::write_u8(buffer, length & 0xFF)?;
+        offset += write_util::write_u8(buffer, (length >> 8) & 0xFF)?;
         Ok(offset)
     }
 }
