@@ -29,6 +29,6 @@ pub fn parse<P: AsRef<Path>>(path: P) -> std::io::Result<components::Arsc> {
 /// the number of bytes that have been written
 /// # Error:
 /// * io errors
-pub fn write<P: AsRef<Path>>(arsc: components::Arsc, output_path: P) -> std::io::Result<usize> {
+pub fn write<P: AsRef<Path>>(arsc: &components::Arsc, output_path: P) -> std::io::Result<usize> {
     writer::write(arsc, output_path.as_ref())
 }

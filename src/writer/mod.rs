@@ -9,7 +9,7 @@ mod components_writing;
 mod with_header;
 mod write_util;
 
-pub fn write(arsc: Arsc, output_path: &Path) -> Result<usize> {
+pub fn write(arsc: &Arsc, output_path: &Path) -> Result<usize> {
     let mut writer = BufWriter::new(File::create(output_path)?);
     arsc.write(&mut writer)
 }
