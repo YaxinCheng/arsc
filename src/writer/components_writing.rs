@@ -201,7 +201,7 @@ impl Config {
         for entry in 0..self.entry_count {
             if let Some(resource) = self.resources.get(&entry) {
                 written += write_util::write_i32(output, offset)?;
-                offset += 2 + 2 + 4 + resource.size();
+                offset += 2 + resource.size(); // _size + resource
             } else {
                 written += write_util::write_i32(output, -1)?;
             }
