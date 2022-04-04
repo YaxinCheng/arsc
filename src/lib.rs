@@ -1,11 +1,25 @@
+//! `arsc` is a simple library that enables parsing and writing Android resource files (arsc)
+//!
+//! # Example
+//! ```rust
+//! use arsc::{parse, write};
+//!
+//! fn main() -> std::io::Result<()> {
+//!     let arsc = parse("/resources.arsc")?;
+//!     let _ = write(&arsc, "/output.arsc")?;
+//!     Ok(())
+//! }
+//! ```
+
 extern crate core;
 
 use std::fs::File;
 use std::path::Path;
 
-mod components;
+pub mod components;
 mod parser;
 mod writer;
+pub use components::*;
 
 /// Parse an arsc file into structured data
 ///

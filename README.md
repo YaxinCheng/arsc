@@ -15,7 +15,8 @@ use arsc::{parse, write};
 
 fn main() -> std::io::Result<()> {
   let arsc = parse("/resources.arsc")?;
-  write(&arsc, "/output.arsc")
+  let _ = write(&arsc, "/output.arsc")?;
+  Ok(())
 }
 ```
 
