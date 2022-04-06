@@ -74,13 +74,31 @@ pub struct Package {
 /// 5. flags indicating the encoding (UTF8 or UTF-16) or sorting condition
 #[derive(Debug)]
 pub struct StringPool {
-    pub strings: Vec<String>,
     pub flags: u32,
+    pub strings: Vec<String>,
+    pub styles: Vec<Style>,
 }
 
 impl StringPool {
     /// The flag indicates whether the strings are encoded with UTF-8
     pub(crate) const UTF8_FLAG: u32 = 0x00000100;
+
+    pub fn use_utf8(&self) -> bool {
+        self.flags & Self::UTF8_FLAG != 0
+    }
+}
+
+/// Style information associated with a string in the string pool
+#[derive(Debug)]
+pub struct Style {
+    /// This is the name of the span -- that is, the name of the XML
+    /// tag that defined it.  The special value END (0xFFFFFFFF) indicates
+    /// the end of an array of spans.
+    pub name: u32,
+    /// The start of the range of characters in the string that this span applies to.
+    pub start: u32,
+    /// The end of the range of characters in the string that this span applies to.
+    pub end: u32,
 }
 
 /// Type is derived from type name string pool. It is an abstraction
@@ -159,6 +177,10 @@ pub struct ResourceEntry {
 impl ResourceEntry {
     /// A flag indicating whether the resource is a plain value or a bag of values
     pub(crate) const ENTRY_FLAG_COMPLEX: u16 = 0x0001;
+
+    pub fn is_bag(&self) -> bool {
+        self.flags & Self::ENTRY_FLAG_COMPLEX != 0
+    }
 }
 
 /// Resource values can have two types:

@@ -5,6 +5,7 @@ use crate::components::{
 };
 use crate::writer::components_sizing::{padding, ByteSizing};
 use crate::writer::with_header::WithHeader;
+use crate::Style;
 use std::io::{Result, Write};
 
 /// types that implement this trait should define the function
@@ -49,11 +50,7 @@ impl ArscSerializable for ResourceValue {
 
 impl ArscSerializable for ResourceEntry {
     fn write<W: Write>(&self, output: &mut W) -> Result<usize> {
-        let size = if self.flags & ResourceEntry::ENTRY_FLAG_COMPLEX != 0 {
-            16
-        } else {
-            8
-        };
+        let size = if self.is_bag() { 16 } else { 8 };
         let mut written = write_util::write_u16(output, size)?;
         written += write_util::write_u16(output, self.flags)?;
         written += write_util::write_u32(output, self.name_index)?;
@@ -75,25 +72,55 @@ impl ArscSerializable for StringPool {
     fn write<W: Write>(&self, output: &mut W) -> Result<usize> {
         let mut position = self.header().write(output)?;
         position += write_util::write_u32(output, self.strings.len())?;
-        position += write_util::write_u32(output, 0)?; // style_count
+        position += write_util::write_u32(output, self.styles.len())?; // style_count
         position += write_util::write_u32(output, self.flags)?;
-        position += write_util::write_u32(output, 7 * 4 + self.strings.len() * 4)?; // string_offset
-        position += write_util::write_u32(output, 0)?; // style offset
-        position += self.write_offsets(output)?;
+        let string_start = 7 * 4 + self.strings.len() * 4 + self.styles.len() * 4;
+        position += write_util::write_u32(output, string_start)?; // string_offset
+
+        let strings = self.strings.iter().map(String::as_ref);
+        let string_length = if self.use_utf8() {
+            strings.map(StringPool::utf8_string_size).sum()
+        } else {
+            strings.map(StringPool::utf16_string_size).sum()
+        };
+        let string_padding = padding(string_length);
+        let style_start = if self.styles.is_empty() {
+            0
+        } else {
+            string_start + string_length + string_padding
+        };
+        position += write_util::write_u32(output, style_start)?;
+        position += self.write_string_offsets(output)?;
+        position += self.write_style_offsets(output)?;
         position += self.write_strings(output)?;
-        position += output.write(&vec![0; padding(position)])?;
+        position += output.write(&vec![0; string_padding])?;
+        for style in &self.styles {
+            position += style.write(output)?;
+        }
+        if !self.styles.is_empty() {
+            position += write_util::write_i32(output, -1)?;
+            position += write_util::write_i32(output, -1)?;
+        }
 
         Ok(position)
     }
 }
 
 impl StringPool {
-    fn write_offsets<W: Write>(&self, output: &mut W) -> Result<usize> {
-        if self.flags & StringPool::UTF8_FLAG != 0 {
+    fn write_string_offsets<W: Write>(&self, output: &mut W) -> Result<usize> {
+        if self.use_utf8() {
             self.write_utf8_offsets(output)
         } else {
             self.write_utf16_offsets(output)
         }
+    }
+
+    fn write_style_offsets<W: Write>(&self, output: &mut W) -> Result<usize> {
+        let mut position = 0;
+        for index in 0..self.styles.len() {
+            position += write_util::write_u32(output, index * 16)?;
+        }
+        Ok(position)
     }
 
     fn write_utf8_offsets<W: Write>(&self, output: &mut W) -> Result<usize> {
@@ -125,7 +152,7 @@ impl StringPool {
     fn write_strings<W: Write>(&self, buffer: &mut W) -> Result<usize> {
         let mut position = 0;
         for string in &self.strings {
-            if self.flags & StringPool::UTF8_FLAG != 0 {
+            if self.use_utf8() {
                 let char_count = string.chars().count();
                 position += Self::write_utf8_length(buffer, char_count)?;
                 position += Self::write_utf8_length(buffer, string.len())?;
@@ -159,6 +186,16 @@ impl StringPool {
         offset += write_util::write_u8(buffer, length & 0xFF)?;
         offset += write_util::write_u8(buffer, (length >> 8) & 0xFF)?;
         Ok(offset)
+    }
+}
+
+impl ArscSerializable for Style {
+    fn write<W: Write>(&self, output: &mut W) -> Result<usize> {
+        let mut position = write_util::write_u32(output, self.name)?;
+        position += write_util::write_u32(output, self.start)?;
+        position += write_util::write_u32(output, self.end)?;
+        position += write_util::write_i32(output, -1)?;
+        Ok(position)
     }
 }
 

@@ -1,5 +1,6 @@
 use super::read_util;
 use crate::components::{Header, ResourceType, StringPool, Value};
+use crate::Style;
 use std::io::{BufReader, Error, Read, Seek, SeekFrom};
 
 impl<R: Read> TryFrom<&mut BufReader<R>> for Header {
@@ -24,18 +25,21 @@ impl<R: Read + Seek> TryFrom<&mut BufReader<R>> for StringPool {
     fn try_from(reader: &mut BufReader<R>) -> Result<Self, Self::Error> {
         let base = reader.stream_position()? - 8;
         let string_count = read_util::read_u32(reader)? as usize;
-        let _style_count = read_util::read_u32(reader)?;
+        let style_count = read_util::read_u32(reader)? as usize;
         let flags = read_util::read_u32(reader)?;
         let string_offset = read_util::read_u32(reader)? as u64;
-        let _style_offset = read_util::read_u32(reader)?;
+        let style_offset = read_util::read_u32(reader)? as u64;
         let mut offsets = Vec::with_capacity(string_count);
         for _ in 0..string_count {
             offsets.push(read_util::read_u32(reader)? as u64)
         }
-        let base = base + string_offset;
+        let mut style_offsets = Vec::with_capacity(style_count);
+        for _ in 0..style_count {
+            style_offsets.push(read_util::read_u32(reader)? as u64)
+        }
+        debug_assert_eq!(reader.stream_position()?, string_offset + base);
         let mut strings = Vec::with_capacity(string_count);
-        for offset in offsets {
-            reader.seek(SeekFrom::Start(base + offset))?;
+        for _ in 0..string_count {
             let string = if flags & StringPool::UTF8_FLAG != 0 {
                 StringPool::read_utf8_string_item(reader)?
             } else {
@@ -43,7 +47,15 @@ impl<R: Read + Seek> TryFrom<&mut BufReader<R>> for StringPool {
             };
             strings.push(string);
         }
-        Ok(StringPool { strings, flags })
+        reader.seek(SeekFrom::Start(base + style_offset))?;
+        let styles = std::iter::repeat_with(|| Style::try_from(&mut *reader))
+            .take(style_count)
+            .collect::<std::io::Result<Vec<_>>>()?;
+        Ok(StringPool {
+            flags,
+            strings,
+            styles,
+        })
     }
 }
 
@@ -78,6 +90,7 @@ impl StringPool {
         for _ in 0..char_count {
             string_bytes.push(read_util::read_u16(reader)?);
         }
+        reader.seek(SeekFrom::Current(2))?; // skip null terminator
         Ok(String::from_utf16(&string_bytes).expect("Not utf-16"))
     }
 
@@ -87,6 +100,18 @@ impl StringPool {
             length = ((length & 0x7FFF) << 8) | read_util::read_u16(reader)? as usize;
         }
         Ok(length)
+    }
+}
+impl<R: Read + Seek> TryFrom<&mut BufReader<R>> for Style {
+    type Error = std::io::Error;
+
+    fn try_from(reader: &mut BufReader<R>) -> Result<Self, Self::Error> {
+        let name = read_util::read_u32(reader)?;
+        let start = read_util::read_u32(reader)?;
+        let end = read_util::read_u32(reader)?;
+        let terminal = read_util::read_i32(reader)?;
+        debug_assert_eq!(terminal, -1);
+        Ok(Style { name, start, end })
     }
 }
 

@@ -2,6 +2,7 @@ use crate::components::{
     Arsc, Config, Header, Package, ResourceEntry, ResourceValue, Spec, Specs, StringPool, Type,
     Value,
 };
+use crate::Style;
 
 /// A trait for objects that have constant sizes
 /// when being written out in arsc format
@@ -82,19 +83,32 @@ impl ByteSizing for Type {
 impl ByteSizing for StringPool {
     fn size(&self) -> usize {
         let size = Header::SIZE // header
-        + 5 * 4 //string_count, _style_count, flags, string_offset, _style_offset
+        + 5 * 4 //string_count, style_count, flags, string_offset, style_offset
         + self.strings.len() * 4 // offsets array
-        + self.strings.iter().map(|s| if (self.flags & StringPool::UTF8_FLAG) != 0 {
-            StringPool::utf8_string_size(s)
+        + self.styles.len() * 4; // style offsets array
+        let string_length = self
+            .strings
+            .iter()
+            .map(|s| {
+                if self.use_utf8() {
+                    StringPool::utf8_string_size(s)
+                } else {
+                    StringPool::utf16_string_size(s)
+                }
+            })
+            .sum::<usize>();
+        let string_padding = padding(string_length);
+        let style_size = if self.styles.is_empty() {
+            0
         } else {
-            StringPool::utf16_string_size(s)
-        }).sum::<usize>();
-        size + padding(size)
+            self.styles.len() * Style::SIZE + 8 // 2 extra terminals
+        };
+        size + string_length + string_padding + style_size
     }
 }
 
 impl StringPool {
-    fn utf8_string_size(string: &str) -> usize {
+    pub(crate) fn utf8_string_size(string: &str) -> usize {
         let char_count = string.chars().count();
         let char_count_bytes = if char_count <= 0x7F { 1 } else { 2 };
 
@@ -104,12 +118,16 @@ impl StringPool {
         char_count_bytes + byte_count_bytes + byte_count + 1 // 1 is the null terminator
     }
 
-    fn utf16_string_size(string: &str) -> usize {
+    pub(crate) fn utf16_string_size(string: &str) -> usize {
         let char_count = string.chars().count();
         let char_count_bytes = if char_count <= 0x7FFF { 2 } else { 4 };
 
         char_count_bytes + char_count * 2 + 2 // 2 is the null terminator
     }
+}
+
+impl ConstByteSizing for Style {
+    const SIZE: usize = 4 + 4 + 4 + 4;
 }
 
 impl ByteSizing for Package {
