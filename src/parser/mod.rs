@@ -1,10 +1,10 @@
 mod components_read;
-mod parsing;
 mod read_util;
 
 use crate::components::Arsc;
-use std::io::{Read, Result, Seek};
+use std::io::{BufReader, Read, Result, Seek};
 
 pub fn parse<R: Read + Seek>(reader: R) -> Result<Arsc> {
-    parsing::Parser::new(reader).parse()
+    let mut reader = BufReader::new(reader);
+    Arsc::try_from(&mut reader)
 }

@@ -1,6 +1,9 @@
 use super::read_util;
 use crate::components::{Header, ResourceType, StringPool, Value};
-use crate::{Style, StyleSpan};
+use crate::{
+    Arsc, Config, Package, ResourceEntry, ResourceValue, Resources, Spec, Specs, Style, StyleSpan,
+    Type,
+};
 use std::io::{BufReader, Error, Read, Seek, SeekFrom};
 
 impl<R: Read> TryFrom<&mut BufReader<R>> for Header {
@@ -23,7 +26,10 @@ impl<R: Read + Seek> TryFrom<&mut BufReader<R>> for StringPool {
     type Error = std::io::Error;
 
     fn try_from(reader: &mut BufReader<R>) -> Result<Self, Self::Error> {
-        let base = reader.stream_position()? - 8;
+        let base = reader.stream_position()?;
+        let header = crate::Header::try_from(&mut *reader)?;
+        assert_eq!(header.resource_type, crate::ResourceType::StringPool);
+
         let string_count = read_util::read_u32(reader)? as usize;
         let style_count = read_util::read_u32(reader)? as usize;
         let flags = read_util::read_u32(reader)?;
@@ -51,6 +57,7 @@ impl<R: Read + Seek> TryFrom<&mut BufReader<R>> for StringPool {
         let styles = std::iter::repeat_with(|| Style::try_from(&mut *reader))
             .take(style_count)
             .collect::<std::io::Result<Vec<_>>>()?;
+        reader.seek(SeekFrom::Start(base + header.size))?;
         Ok(StringPool {
             flags,
             strings,
@@ -133,6 +140,195 @@ impl<R: Read + Seek> TryFrom<&mut BufReader<R>> for Value {
             zero,
             r#type,
             data_index,
+        })
+    }
+}
+
+impl<R: Read + Seek> TryFrom<&mut BufReader<R>> for Specs {
+    type Error = std::io::Error;
+
+    fn try_from(reader: &mut BufReader<R>) -> Result<Self, Self::Error> {
+        let type_id = read_util::read_u8(reader)? as usize;
+        let res0 = read_util::read_u8(reader)?;
+        let res1 = read_util::read_u16(reader)?;
+        let entry_count = read_util::read_u32(reader)? as usize;
+
+        let specs = std::iter::repeat_with(|| read_util::read_u32(reader))
+            .take(entry_count)
+            .enumerate()
+            .map(|(id, flags)| Result::Ok(Spec::new(flags?, id)))
+            .collect::<Result<Vec<_>, Self::Error>>()?;
+        debug_assert!(!specs.is_empty(), "Specs cannot be empty");
+        Ok(Specs {
+            type_id,
+            res0,
+            res1,
+            specs,
+            header_size: u16::MAX,
+        })
+    }
+}
+
+impl<R: Read + Seek> TryFrom<&mut BufReader<R>> for ResourceEntry {
+    type Error = std::io::Error;
+
+    fn try_from(reader: &mut BufReader<R>) -> Result<Self, Self::Error> {
+        let _size = read_util::read_u16(reader)?;
+        let flags = read_util::read_u16(reader)?;
+        let name_index = read_util::read_u32(reader)? as usize;
+
+        let value = if flags & ResourceEntry::ENTRY_FLAG_COMPLEX != 0 {
+            let parent = read_util::read_u32(reader)?;
+            let count = read_util::read_u32(reader)? as usize;
+            let mut values = Vec::with_capacity(count);
+            for _ in 0..count {
+                let index = read_util::read_u32(reader)?;
+                let value = Value::try_from(&mut *reader)?;
+                values.push((index, value));
+            }
+            ResourceValue::Bag { parent, values }
+        } else {
+            ResourceValue::Plain(Value::try_from(reader)?)
+        };
+        Ok(ResourceEntry {
+            flags,
+            name_index,
+            value,
+            spec_id: usize::MAX,
+        })
+    }
+}
+
+impl<R: Read + Seek> TryFrom<&mut BufReader<R>> for Config {
+    type Error = std::io::Error;
+
+    fn try_from(reader: &mut BufReader<R>) -> Result<Self, Self::Error> {
+        let type_id = read_util::read_u8(reader)? as usize;
+        let res0 = read_util::read_u8(reader)?;
+        let res1 = read_util::read_u16(reader)?;
+        let entry_count = read_util::read_u32(reader)? as usize;
+        let _entry_start = read_util::read_u32(reader)?;
+        let config_id = Config::parse_config_id(reader)?;
+
+        let resources = Config::parse_config_resources(reader, entry_count)?;
+        Ok(Config {
+            type_id,
+            res0,
+            res1,
+            id: config_id,
+            resources,
+            header_size: u16::MAX,
+        })
+    }
+}
+
+impl Config {
+    fn parse_config_id<R: Read + Seek>(reader: &mut R) -> std::io::Result<Vec<u8>> {
+        let size = read_util::read_u32(reader)? as usize;
+        let mut config_id = vec![0_u8; size];
+        reader.seek(SeekFrom::Current(-4))?;
+        reader.read_exact(&mut config_id)?;
+        Ok(config_id)
+    }
+
+    fn parse_config_resources<R: Read + Seek>(
+        reader: &mut BufReader<R>,
+        entry_count: usize,
+    ) -> std::io::Result<Resources> {
+        let _current = reader.stream_position()?;
+        let entries = std::iter::repeat_with(|| read_util::read_u32(reader))
+            .take(entry_count)
+            .collect::<std::io::Result<Vec<_>>>()?;
+        let _current = reader.stream_position()?;
+        let mut resources = Vec::with_capacity(entry_count);
+        for (spec_index, entry) in entries.into_iter().enumerate() {
+            if entry == u32::MAX {
+                continue;
+            }
+            let mut resource = ResourceEntry::try_from(&mut *reader)?;
+            resource.spec_id = spec_index;
+            resources.push(resource);
+        }
+        resources.shrink_to_fit();
+        let resource_count = resources.len();
+        Ok(Resources {
+            resources,
+            missing_entries: entry_count - resource_count,
+        })
+    }
+}
+
+impl<R: Read + Seek> TryFrom<&mut BufReader<R>> for Package {
+    type Error = std::io::Error;
+
+    fn try_from(reader: &mut BufReader<R>) -> Result<Self, Self::Error> {
+        let package_header = Header::try_from(&mut *reader)?;
+        debug_assert_eq!(package_header.resource_type, ResourceType::TablePackage);
+        let package_id = read_util::read_u32(reader)?;
+        let package_name = Self::parse_package_name(reader)?;
+
+        let _type_string_offset = read_util::read_u32(reader)?;
+        let last_public_type = read_util::read_u32(reader)?;
+        let _key_string_offset = read_util::read_u32(reader)?;
+        let last_public_key = read_util::read_u32(reader)?;
+        let _type_id_offset = read_util::read_u32(reader)?;
+
+        let type_names = StringPool::try_from(&mut *reader)?;
+        let mut types = (1..=type_names.strings.len())
+            .map(Type::with_id)
+            .collect::<Vec<_>>();
+        let key_names = StringPool::try_from(&mut *reader)?;
+
+        while let Ok(header) = Header::try_from(&mut *reader) {
+            match header.resource_type {
+                ResourceType::TableTypeSpec => {
+                    let mut specs = Specs::try_from(&mut *reader)?;
+                    specs.header_size = header.header_size;
+                    debug_assert!(
+                        &types[specs.type_id - 1].specs.is_none(),
+                        "Target type already has specs"
+                    );
+                    types[specs.type_id - 1].specs.replace(specs);
+                }
+                ResourceType::TableType => {
+                    let mut config = Config::try_from(&mut *reader)?;
+                    config.header_size = header.header_size;
+                    types[config.type_id - 1].configs.push(config);
+                }
+                flag => unreachable!("Unexpected flag: {flag:?}"),
+            }
+        }
+        Ok(Package {
+            id: package_id,
+            name: package_name,
+            type_names,
+            last_public_type,
+            types,
+            key_names,
+            last_public_key,
+        })
+    }
+}
+
+impl Package {
+    fn parse_package_name<R: Read + Seek>(reader: &mut R) -> std::io::Result<String> {
+        read_util::read_string_utf16::<128, R>(reader)
+    }
+}
+
+impl<R: Read + Seek> TryFrom<&mut BufReader<R>> for Arsc {
+    type Error = std::io::Error;
+
+    fn try_from(reader: &mut BufReader<R>) -> Result<Self, Self::Error> {
+        let _header = Header::try_from(&mut *reader)?;
+        let package_count = read_util::read_u32(reader)? as usize;
+        let global_string_pool = StringPool::try_from(&mut *reader)?;
+        let packages = std::iter::repeat_with(|| Package::try_from(&mut *reader))
+            .take(package_count)
+            .collect::<Result<Vec<_>, Self::Error>>()?;
+        Ok(Arsc {
+            global_string_pool,
+            packages,
         })
     }
 }

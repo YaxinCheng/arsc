@@ -5,7 +5,7 @@ use crate::components::{
 };
 use crate::writer::components_sizing::{padding, ByteSizing, ConstByteSizing};
 use crate::writer::with_header::WithHeader;
-use crate::{Style, StyleSpan};
+use crate::{Resources, Style, StyleSpan};
 use std::io::{Result, Write};
 
 /// types that implement this trait should define the function
@@ -98,8 +98,8 @@ impl ArscSerializable for StringPool {
             position += style.write(output)?;
         }
         if !self.styles.is_empty() {
-            position += write_util::write_i32(output, -1)?;
-            position += write_util::write_i32(output, -1)?;
+            position += write_util::write_u32(output, u32::MAX)?;
+            position += write_util::write_u32(output, u32::MAX)?;
         }
 
         Ok(position)
@@ -197,7 +197,7 @@ impl ArscSerializable for Style {
         for span in &self.spans {
             written += span.write(output)?;
         }
-        written += write_util::write_i32(output, -1)?;
+        written += write_util::write_u32(output, u32::MAX)?;
         Ok(written)
     }
 }
@@ -237,37 +237,48 @@ impl ArscSerializable for Config {
         position += write_util::write_u8(output, self.type_id)?;
         position += write_util::write_u8(output, self.res0)?;
         position += write_util::write_u16(output, self.res1)?;
-        position += write_util::write_u32(output, self.entry_count)?;
-        let entry_start =
-            position + 4 + self.id.len() + padding(self.id.len()) + self.entry_count * 4;
+        position += write_util::write_u32(output, self.resources.entry_count())?;
+        let entry_start = position
+            + 4
+            + self.id.len()
+            + padding(self.id.len())
+            + self.resources.entry_count() * 4;
         position += write_util::write_u32(output, entry_start)?;
         position += output.write(&self.id)?;
         position += output.write(&vec![0; padding(self.id.len())])?;
-        position += self.write_resources(output)?;
+        position += self.resources.write(output)?;
 
         Ok(position)
     }
 }
 
-impl Config {
-    fn write_resources<W: Write>(&self, output: &mut W) -> Result<usize> {
+impl ArscSerializable for Resources {
+    fn write<W: Write>(&self, output: &mut W) -> Result<usize> {
         let mut position = self.write_entries(output)?;
-        for resource in self.resources.values() {
+        for resource in &self.resources {
             position += resource.write(output)?;
         }
         Ok(position)
     }
+}
 
+impl Resources {
     fn write_entries<W: Write>(&self, output: &mut W) -> Result<usize> {
         let mut offset = 0;
         let mut written = 0;
-        for entry in 0..self.entry_count {
-            if let Some(resource) = self.resources.get(&entry) {
-                written += write_util::write_i32(output, offset)?;
-                offset += 2 + resource.size(); // _size + resource
-            } else {
-                written += write_util::write_i32(output, -1)?;
+
+        let mut expected_spec_id = 0;
+        for resource in &self.resources {
+            let gaps = resource.spec_id - expected_spec_id;
+            for _ in 0..gaps {
+                written += write_util::write_u32(output, u32::MAX)?;
             }
+            written += write_util::write_u32(output, offset)?;
+            offset += resource.size();
+            expected_spec_id = resource.spec_id + 1;
+        }
+        for _ in expected_spec_id..self.entry_count() {
+            written += write_util::write_u32(output, u32::MAX)?;
         }
         Ok(written)
     }

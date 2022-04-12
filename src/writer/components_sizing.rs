@@ -2,7 +2,7 @@ use crate::components::{
     Arsc, Config, Header, Package, ResourceEntry, ResourceValue, Spec, Specs, StringPool, Type,
     Value,
 };
-use crate::{Style, StyleSpan};
+use crate::{Resources, Style, StyleSpan};
 
 /// A trait for objects that have constant sizes
 /// when being written out in arsc format
@@ -42,7 +42,7 @@ impl ByteSizing for ResourceValue {
 
 impl ByteSizing for ResourceEntry {
     fn size(&self) -> usize {
-        2 + 4 + self.value.size() // flags + name_index + value. `spec_id` is not read in
+        2 + 2 + 4 + self.value.size() // _size + name_index + flags + name_index + value. `spec_id` is not read in
     }
 }
 
@@ -51,13 +51,13 @@ impl ByteSizing for Config {
         Header::SIZE + 1 + 1 + 2 + 4 + 4 // type_id + res0 + res1 + entry_count + _entry_start
             + self.id.len()// config_id
             + padding(self.id.len())// config_id_padding
-            + self.entry_count * 4 // entries
-            + self.resources.len() * 2// _size + name_index 
-            + self
-                .resources
-                .values()
-                .map(ByteSizing::size)
-                .sum::<usize>()
+            + self.resources.size()
+    }
+}
+
+impl ByteSizing for Resources {
+    fn size(&self) -> usize {
+        self.entry_count() * 4 + self.resources.iter().map(ByteSizing::size).sum::<usize>()
     }
 }
 

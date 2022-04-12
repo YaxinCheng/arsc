@@ -15,7 +15,6 @@ macro_rules! write_num {
 write_num!(u8);
 write_num!(u16);
 write_num!(u32);
-write_num!(i32);
 
 pub fn write_string_utf16<W: Write>(writer: &mut W, string: &str) -> Result<usize> {
     let mut written = 0;

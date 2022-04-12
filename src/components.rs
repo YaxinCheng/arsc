@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 /// Header is the ResTable_header.
 /// Each chunk in an arsc file has a header
 #[derive(Debug)]
@@ -97,7 +95,7 @@ pub struct Style {
 }
 
 impl Style {
-    pub(crate) const RES_STRING_POOL_SPAN_END: u32 = 0xFFFFFFFF;
+    pub(crate) const RES_STRING_POOL_SPAN_END: u32 = u32::MAX;
 }
 
 #[derive(Debug)]
@@ -142,27 +140,15 @@ pub struct Specs {
     pub header_size: u16,
 }
 
-impl Specs {
-    pub fn set_name_index(&mut self, spec_index: usize, name_index: usize) {
-        self.specs[spec_index].name_index = name_index;
-    }
-}
-
 #[derive(Default, Debug)]
 pub struct Spec {
     pub flags: u32,
     pub id: usize,
-    /// name_index points to the name of this spec, at `key_names[name_index]`
-    pub name_index: usize,
 }
 
 impl Spec {
     pub fn new(flags: u32, id: usize) -> Self {
-        Spec {
-            flags,
-            id,
-            ..Default::default()
-        }
+        Spec { flags, id }
     }
 }
 
@@ -172,19 +158,30 @@ pub struct Config {
     pub type_id: usize,
     pub res0: u8,
     pub res1: u16,
-    pub entry_count: usize,
     pub id: Vec<u8>,
-    pub resources: BTreeMap<usize, ResourceEntry>,
+    pub resources: Resources,
     pub header_size: u16,
+}
+
+#[derive(Debug)]
+pub struct Resources {
+    pub resources: Vec<ResourceEntry>,
+    pub missing_entries: usize,
+}
+
+impl Resources {
+    pub(crate) fn entry_count(&self) -> usize {
+        self.missing_entries + self.resources.len()
+    }
 }
 
 #[derive(Debug)]
 pub struct ResourceEntry {
     pub flags: u16,
-    /// spec_id points to the specific spec at `specs[spec_id]` that is associated with this resource
-    pub spec_id: usize,
     pub name_index: usize,
     pub value: ResourceValue,
+    /// spec_id points to the specific spec at `specs[spec_id]` that is associated with this resource
+    pub spec_id: usize,
 }
 
 impl ResourceEntry {

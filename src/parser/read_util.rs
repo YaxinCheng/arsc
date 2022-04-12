@@ -16,7 +16,6 @@ macro_rules! read_num {
 read_num!(u8);
 read_num!(u16);
 read_num!(u32);
-read_num!(i32);
 
 /// read 0-terminated string as utf16 encoding
 /// ## Warning:
