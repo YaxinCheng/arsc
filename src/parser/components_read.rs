@@ -1,6 +1,6 @@
 use super::read_util;
 use crate::components::{Header, ResourceType, StringPool, Value};
-use crate::Style;
+use crate::{Style, StyleSpan};
 use std::io::{BufReader, Error, Read, Seek, SeekFrom};
 
 impl<R: Read> TryFrom<&mut BufReader<R>> for Header {
@@ -106,12 +106,17 @@ impl<R: Read + Seek> TryFrom<&mut BufReader<R>> for Style {
     type Error = std::io::Error;
 
     fn try_from(reader: &mut BufReader<R>) -> Result<Self, Self::Error> {
-        let name = read_util::read_u32(reader)?;
-        let start = read_util::read_u32(reader)?;
-        let end = read_util::read_u32(reader)?;
-        let terminal = read_util::read_i32(reader)?;
-        debug_assert_eq!(terminal, -1);
-        Ok(Style { name, start, end })
+        let mut spans = Vec::new();
+        loop {
+            let name = read_util::read_u32(reader)?;
+            if name == Style::RES_STRING_POOL_SPAN_END {
+                break;
+            }
+            let start = read_util::read_u32(reader)?;
+            let end = read_util::read_u32(reader)?;
+            spans.push(StyleSpan { name, start, end })
+        }
+        Ok(Style { spans })
     }
 }
 

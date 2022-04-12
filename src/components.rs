@@ -60,8 +60,10 @@ pub struct Package {
     pub id: u32,
     pub name: String,
     pub type_names: StringPool,
+    pub last_public_type: u32,
     pub types: Vec<Type>,
     pub key_names: StringPool,
+    pub last_public_key: u32,
 }
 
 /// StringPool is a chunk that stores all the strings used in this chunk.
@@ -91,6 +93,15 @@ impl StringPool {
 /// Style information associated with a string in the string pool
 #[derive(Debug)]
 pub struct Style {
+    pub spans: Vec<StyleSpan>,
+}
+
+impl Style {
+    pub(crate) const RES_STRING_POOL_SPAN_END: u32 = 0xFFFFFFFF;
+}
+
+#[derive(Debug)]
+pub struct StyleSpan {
     /// This is the name of the span -- that is, the name of the XML
     /// tag that defined it.  The special value END (0xFFFFFFFF) indicates
     /// the end of an array of spans.

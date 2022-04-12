@@ -2,7 +2,7 @@ use crate::components::{
     Arsc, Config, Header, Package, ResourceEntry, ResourceValue, Spec, Specs, StringPool, Type,
     Value,
 };
-use crate::Style;
+use crate::{Style, StyleSpan};
 
 /// A trait for objects that have constant sizes
 /// when being written out in arsc format
@@ -101,7 +101,7 @@ impl ByteSizing for StringPool {
         let style_size = if self.styles.is_empty() {
             0
         } else {
-            self.styles.len() * Style::SIZE + 8 // 2 extra terminals
+            self.styles.iter().map(ByteSizing::size).sum::<usize>() + 8 // 2 extra terminals
         };
         size + string_length + string_padding + style_size
     }
@@ -126,8 +126,14 @@ impl StringPool {
     }
 }
 
-impl ConstByteSizing for Style {
-    const SIZE: usize = 4 + 4 + 4 + 4;
+impl ByteSizing for Style {
+    fn size(&self) -> usize {
+        self.spans.len() * StyleSpan::SIZE + 4
+    }
+}
+
+impl ConstByteSizing for StyleSpan {
+    const SIZE: usize = 4 + 4 + 4;
 }
 
 impl ByteSizing for Package {

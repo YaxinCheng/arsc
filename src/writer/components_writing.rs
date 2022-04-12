@@ -3,9 +3,9 @@ use crate::components::{
     Arsc, Config, Header, Package, ResourceEntry, ResourceValue, Spec, Specs, StringPool, Type,
     Value,
 };
-use crate::writer::components_sizing::{padding, ByteSizing};
+use crate::writer::components_sizing::{padding, ByteSizing, ConstByteSizing};
 use crate::writer::with_header::WithHeader;
-use crate::Style;
+use crate::{Style, StyleSpan};
 use std::io::{Result, Write};
 
 /// types that implement this trait should define the function
@@ -117,10 +117,12 @@ impl StringPool {
 
     fn write_style_offsets<W: Write>(&self, output: &mut W) -> Result<usize> {
         let mut position = 0;
-        for index in 0..self.styles.len() {
-            position += write_util::write_u32(output, index * 16)?;
+        let mut written = 0;
+        for style in &self.styles {
+            written += write_util::write_u32(output, position)?;
+            position += style.spans.len() * StyleSpan::SIZE + 4;
         }
-        Ok(position)
+        Ok(written)
     }
 
     fn write_utf8_offsets<W: Write>(&self, output: &mut W) -> Result<usize> {
@@ -191,10 +193,20 @@ impl StringPool {
 
 impl ArscSerializable for Style {
     fn write<W: Write>(&self, output: &mut W) -> Result<usize> {
+        let mut written = 0;
+        for span in &self.spans {
+            written += span.write(output)?;
+        }
+        written += write_util::write_i32(output, -1)?;
+        Ok(written)
+    }
+}
+
+impl ArscSerializable for StyleSpan {
+    fn write<W: Write>(&self, output: &mut W) -> Result<usize> {
         let mut position = write_util::write_u32(output, self.name)?;
         position += write_util::write_u32(output, self.start)?;
         position += write_util::write_u32(output, self.end)?;
-        position += write_util::write_i32(output, -1)?;
         Ok(position)
     }
 }
@@ -286,10 +298,10 @@ impl ArscSerializable for Package {
 
         let type_string_offset = position + 5 * 4;
         position += write_util::write_u32(output, type_string_offset)?; // type_string_offset
-        position += write_util::write_u32(output, 0)?; // last_public_type
+        position += write_util::write_u32(output, self.last_public_type)?; // last_public_type
         let key_string_offset = type_string_offset + self.type_names.size();
         position += write_util::write_u32(output, key_string_offset)?; // key_string_offset
-        position += write_util::write_u32(output, 0)?; // last_public_key
+        position += write_util::write_u32(output, self.last_public_key)?; // last_public_key
         position += write_util::write_u32(output, 0)?; // type_id_offset
 
         position += self.type_names.write(output)?;

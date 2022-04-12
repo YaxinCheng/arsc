@@ -34,9 +34,9 @@ impl<R: Read + Seek> Parser<R> {
         let package_name = self.parse_package_name()?;
 
         let _type_string_offset = self.read_u32()?;
-        let _last_public_type = self.read_u32()?;
+        let last_public_type = self.read_u32()?;
         let _key_string_offset = self.read_u32()?;
-        let _last_public_key = self.read_u32()?;
+        let last_public_key = self.read_u32()?;
         let _type_id_offset = self.read_u32()?;
 
         let type_names = self.parse_string_pool()?;
@@ -56,8 +56,10 @@ impl<R: Read + Seek> Parser<R> {
             id: package_id,
             name: package_name,
             type_names,
+            last_public_type,
             types,
             key_names,
+            last_public_key,
         })
     }
 
