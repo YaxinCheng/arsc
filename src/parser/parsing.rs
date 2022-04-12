@@ -47,8 +47,8 @@ impl<R: Read + Seek> Parser<R> {
 
         while let Ok(header) = Header::try_from(&mut self.0) {
             match header.resource_type {
-                ResourceType::TableTypeSpec => self.parse_specs(&mut types)?,
-                ResourceType::TableType => self.parse_config(&mut types)?,
+                ResourceType::TableTypeSpec => self.parse_specs(header, &mut types)?,
+                ResourceType::TableType => self.parse_config(header, &mut types)?,
                 flag => unreachable!("Unexpected flag: {flag:?}"),
             }
         }
@@ -79,7 +79,7 @@ impl<R: Read + Seek> Parser<R> {
         read_util::read_string_utf16::<128, BufReader<R>>(&mut self.0)
     }
 
-    fn parse_specs(&mut self, types: &mut [Type]) -> Result<()> {
+    fn parse_specs(&mut self, header: Header, types: &mut [Type]) -> Result<()> {
         let type_id = self.read_u8()? as usize;
         let res0 = self.read_u8()?;
         let res1 = self.read_u16()?;
@@ -98,11 +98,12 @@ impl<R: Read + Seek> Parser<R> {
             res0,
             res1,
             specs,
+            header_size: header.header_size,
         });
         Ok(())
     }
 
-    fn parse_config(&mut self, types: &mut [Type]) -> Result<()> {
+    fn parse_config(&mut self, header: Header, types: &mut [Type]) -> Result<()> {
         let type_id = self.read_u8()? as usize;
         let res0 = self.read_u8()?;
         let res1 = self.read_u16()?;
@@ -119,6 +120,7 @@ impl<R: Read + Seek> Parser<R> {
             entry_count,
             id: config_id,
             resources,
+            header_size: header.header_size,
         };
         resource_type.configs.push(config);
         Ok(())

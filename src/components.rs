@@ -139,6 +139,7 @@ pub struct Specs {
     pub res0: u8,
     pub res1: u16,
     pub specs: Vec<Spec>,
+    pub header_size: u16,
 }
 
 impl Specs {
@@ -174,6 +175,7 @@ pub struct Config {
     pub entry_count: usize,
     pub id: Vec<u8>,
     pub resources: BTreeMap<usize, ResourceEntry>,
+    pub header_size: u16,
 }
 
 #[derive(Debug)]
