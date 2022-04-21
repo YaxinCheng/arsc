@@ -1,6 +1,6 @@
 [package]
 name = "arsc"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 authors = ["Yaxin Cheng <yaxin.cheng@icloud.com>"]
 license = "MIT"
@@ -9,6 +9,7 @@ homepage = "https://github.com/YaxinCheng/arsc"
 repository = "https://github.com/YaxinCheng/arsc"
 readme = "README.md"
 keywords = ["arsc", "android"]
+exclude = ["tests"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
