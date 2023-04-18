@@ -46,6 +46,60 @@ pub struct Arsc {
     pub global_string_pool: StringPool,
 }
 
+impl Arsc {
+    pub fn get_main_package(&self) -> Option<&Package> {
+        if self.packages.len() > 0 {
+            Some(&self.packages[0])
+        }
+        else {
+            None
+        }
+    }
+
+    pub fn get_string(&self, package_name: &String, key: String) -> Option<&String> {
+        // find package
+        let package = match self.packages.iter().find(|p| p.name.eq(package_name)) {
+            Some(p) => p,
+            None => return None
+        };
+
+        // get index of string table
+        let string_table_idx = match package.type_names.strings.iter().position(|s| s.eq("string")) {
+            Some(i) => i,
+            None => return None
+        };
+
+        // get index of string
+        let string_idx = match package.key_names.strings.iter().position(|s| s.eq(&key)) {
+            Some(i) => i,
+            None => return None
+        };
+
+        // find resource entry
+        let res_entry = match package.types[string_table_idx].configs.iter().find(|c| c.resources.resources.iter().any(|r| r.name_index == string_idx)) {
+            Some(config) => {
+                match config.resources.resources.iter().find(|r| r.name_index == string_idx) {
+                    Some(res) => res,
+                    None => return None
+                }
+            }
+            None => return None
+        };
+
+        let global_string_index = match &res_entry.value {
+            ResourceValue::Plain(val) => val.data_index,
+            ResourceValue::Bag{parent: _, values } => values.first().unwrap().1.data_index
+        };
+
+        if global_string_index < self.global_string_pool.strings.len() {
+            Some(&self.global_string_pool.strings[global_string_index])
+        }
+        else {
+            None
+        }
+    }
+}
+
 /// A chunk with header type `ResTable_package`.
 /// It consists of multiple parts:
 ///
