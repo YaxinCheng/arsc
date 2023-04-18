@@ -299,7 +299,7 @@ impl<R: Read + Seek> TryFrom<&mut BufReader<R>> for Package {
                     types[config.type_id - 1].configs.push(config);
                 }
                 ResourceType::TablePackage => {
-                    // new package, move reade back and restart
+                    // new package, move reader back and restart
                     reader.seek(SeekFrom::Current(-HEADER_SIZE))?;
                     break;
                 }
