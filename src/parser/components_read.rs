@@ -6,6 +6,9 @@ use crate::{
 };
 use std::io::{BufReader, Error, Read, Seek, SeekFrom};
 
+// type bits (u16) + header size (u16) + size (u32)
+const HEADER_SIZE: i64 = 8;
+
 impl<R: Read> TryFrom<&mut BufReader<R>> for Header {
     type Error = std::io::Error;
 
@@ -295,7 +298,16 @@ impl<R: Read + Seek> TryFrom<&mut BufReader<R>> for Package {
                     config.header_size = header.header_size;
                     types[config.type_id - 1].configs.push(config);
                 }
-                flag => unreachable!("Unexpected flag: {flag:?}"),
+                ResourceType::TablePackage => {
+                    // new package, move reade back and restart
+                    reader.seek(SeekFrom::Current(-HEADER_SIZE))?;
+                    break;
+                }
+                ResourceType::TableLibrary => {
+                    // currently not supported
+                    reader.seek(SeekFrom::Current(i64::try_from(header.size).unwrap() - HEADER_SIZE))?;
+                }
+                flag => unreachable!("Unexpected flag: {flag:?} {header:?}"),
             }
         }
         Ok(Package {
