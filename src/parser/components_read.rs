@@ -80,7 +80,7 @@ impl StringPool {
             string_bytes.push(byte);
         }
         reader.seek(SeekFrom::Start(start + byte_count as u64 + 1))?;
-        Ok(String::from_utf8(string_bytes).expect("Not uft-8"))
+        Ok(String::from_utf8_lossy(&string_bytes).to_string())
     }
 
     fn utf8_length<R: Read>(reader: &mut BufReader<R>) -> Result<usize, Error> {
@@ -98,7 +98,7 @@ impl StringPool {
             string_bytes.push(read_util::read_u16(reader)?);
         }
         reader.seek(SeekFrom::Current(2))?; // skip null terminator
-        Ok(String::from_utf16(&string_bytes).expect("Not utf-16"))
+        Ok(String::from_utf16_lossy(&string_bytes))
     }
 
     fn utf16_length<R: Read>(reader: &mut BufReader<R>) -> Result<usize, Error> {
