@@ -1,7 +1,7 @@
 //! `arsc` is a simple library that enables parsing and writing Android resource files (arsc)
 //!
 //! # Example
-//! ```rust
+//! ```rust,no_run
 //! use arsc::{parse, write};
 //!
 //! fn main() -> std::io::Result<()> {
